@@ -23,7 +23,7 @@ With ATARC besides what I just said above, you could control the order of execut
 
 ##### Manual Install
 
-You may manually create the class within your org and copy paste the content of AsyncTriggerArc class as for the AsyncTriggerArcTest and create the custom settings AsyncTriggerArqSettings__c but that's the long path, just use the button above its gonna be esaier. 
+You may manually create the class within your org and copy paste the content of AsyncTriggerArc class as for the AsyncTriggerArcTest and create the custom settings AsyncTriggerArqSettings__c but that's the long path, just use the button above its gonna be easier. 
 
 ### Implementation & Usage
 _____
