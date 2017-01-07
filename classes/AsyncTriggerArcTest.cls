@@ -201,7 +201,13 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               null);
         
     	test.startTest();
-		ata.AddProcessSkip('Test Process 2');        
+		ata.AddProcessSkip('Test Process 2');  
+        ata.AddProcessSkip('test process fake');
+        ata.AddSObjectSkip('testObject__c');
+        
+        //just to make sure the crappy coverage is good
+        ata.removeObjectSkip('testObject__c');
+        ata.removeProcessSkip('test process fake');
         ata.Start();
         test.stoptest();
         
