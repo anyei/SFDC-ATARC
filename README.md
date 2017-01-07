@@ -2,7 +2,7 @@
 
 Inbound request ahead but Opportunity triggers are at their limits!! 
 
-Triggers are flooded with functionalities and salesforce governor limits are a pain in my.... neck, how can i come up with somethign so that at least let us make some extra space to include another process that needs to run within this trigger?. I think i'm not the only one nor the first one who have asked that question.
+Triggers are flooded with functionalities and salesforce governor limits are a pain in my.... neck, how can i come up with something so that at least let us make some extra space to include another process that needs to run within this trigger?. I think i'm not the only one nor the first one who have asked that question.
 
 Imagine you could found a framework that allows you to fight against the de-facto governor limit situation. Let me introduce ATARC (heroic music playing in the background). 
 
@@ -28,6 +28,8 @@ You may manually create the class within your org and copy paste the content of 
 ### Implementation & Usage
 _____
 Because nothing is magic, actually we have to do some setup.
+
+WILL BE UPDATING THE IMPLEMENTATION SOON I JUST DONT HAVE ENOUGH TIME TODAY!
 
 #### Implementing with Existing Triggers
 
