@@ -344,8 +344,8 @@ public class AsyncTriggerArc {
             
             output = instance.execute(config.triggerContext);
             long totalTime = system.datetime.now().millisecond() - startTime;
-            
-            UpdateStatus(config, setting, PROCESS_EXECUTED);
+                
+            UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED )  );
             
             UpdateProcessTime(config, setting, totalTime);
         }catch(Exception err){  
@@ -417,6 +417,7 @@ public class AsyncTriggerArc {
         public Map<id, SObject> newMap  {get;set;}
         
         protected string processName;
+        protected boolean processSucceeded = true;
         protected Map<string,object> CustomData {get;set;}
         public AsyncTriggerArcContext(){
             customData = new Map<string,object>();
@@ -427,6 +428,10 @@ public class AsyncTriggerArc {
         }
         public string getCurrentProcessName(){
             return processName;
+        }
+        
+        public void setFailed(){
+            processSucceeded = false;
         }
     }
     
