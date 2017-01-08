@@ -55,7 +55,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
        AsyncTriggerArc.AsyncTriggerArcException expectedError = null;
         test.startTest();
         try{
-            AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity',null,
+            AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity',null,
                                                    true, //before
                                                   false, 
                                                   true, //insert
@@ -78,7 +78,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     }
     
     @IsTest static void ProcessOrderShouldOrderBaseOnTheOrderField(){
-      AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+      AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
                                               true, //insert
@@ -104,7 +104,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     }
     
     @IsTest static void TriggerWithNoSubscriptionsShouldNotWork(){
-        AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity','OpportunityAfterTrigger',
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityAfterTrigger',
                                                true, //before
                                               false, 
                                               true, //insert
@@ -116,10 +116,10 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               null);
         
         test.starttest();    
-    	ata.Start();
+    	atarc.Start();
         test.stoptest();
         
-        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= ata.getProcessesExecutionInformation();
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
         integer totalProcesses = executionResult.size();
         integer totalExecutedProcesses = 0;
         for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
@@ -129,7 +129,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     }
     
     @IsTest static void TriggerWithShoulbscriptionsShouldExecuteThem(){
-        AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
                                               true, //insert
@@ -141,10 +141,10 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               null);
         
     	test.startTest();
-        ata.Start();
+        atarc.Start();
         test.stoptest();
         
-        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= ata.getProcessesExecutionInformation();
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
         integer totalProcesses = executionResult.size();
         integer totalExecutedProcesses = 0;
         
@@ -155,7 +155,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     }
     
     @IsTest static void TriggerWithSubscriptionsShouldExecuteSuccess(){
-        AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
                                               true, //insert
@@ -167,10 +167,45 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               null);
         
     	test.startTest();        
-        ata.Start();
+        atarc.Start();
         test.stoptest();
         
-        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= ata.getProcessesExecutionInformation();
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        
+     
+        system.assert(totalProcesses == 5 && totalExecutedProcesses ==5, 'Expected is (totalProcesses 5 totalExecutedProcesses 5) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 1') == 'something new', 'Expected is "something new" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 1')+'"');
+               
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 2') == 'something old', 'Expected is "something old" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 2')+'"');
+        
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 3') == null, 'Expected is null Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 3')+'"');
+    }
+    
+    
+    @IsTest static void TriggerWithSubscriptionsShouldExecuteSuccessConstructor2(){
+        AsyncTriggerArc atarc = new AsyncTriggerArc('OpportunityBeforeTrigger',
+                                               true, //before
+                                              false, 
+                                              true, //insert
+                                              false, 
+                                              false,
+                                              new List<Opportunity>{new Opportunity()},
+                                              null,
+                                              null, 
+                                              null);
+        
+    	test.startTest();        
+        atarc.Start();
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
         integer totalProcesses = executionResult.size();
         integer totalExecutedProcesses = 0;
         
@@ -189,7 +224,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     }
     
     @IsTest static void UsingSkipPRocessShouldNotExecuteSpecificProcess(){
-        AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
                                               true, //insert
@@ -201,17 +236,17 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               null);
         
     	test.startTest();
-		ata.AddProcessSkip('Test Process 2');  
-        ata.AddProcessSkip('test process fake');
-        ata.AddSObjectSkip('testObject__c');
+		atarc.AddProcessSkip('Test Process 2');  
+        atarc.AddProcessSkip('test process fake');
+        atarc.AddSObjectSkip('testObject__c');
         
         //just to make sure the crappy coverage is good
-        ata.removeObjectSkip('testObject__c');
-        ata.removeProcessSkip('test process fake');
-        ata.Start();
+        atarc.removeObjectSkip('testObject__c');
+        atarc.removeProcessSkip('test process fake');
+        atarc.Start();
         test.stoptest();
         
-        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= ata.getProcessesExecutionInformation();
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
         integer totalProcesses = executionResult.size();
         integer totalExecutedProcesses = 0;
         
@@ -229,7 +264,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     
     
      @IsTest static void UsingSkipObjectShouldNotExecuteProcessForSpecificObject(){
-        AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
                                               true, //insert
@@ -241,11 +276,11 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               null);
         
     	test.startTest();
-		ata.AddSObjectSkip('Opportunity');       
-        ata.Start();
+		atarc.AddSObjectSkip('Opportunity');       
+        atarc.Start();
         test.stoptest();
         
-        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= ata.getProcessesExecutionInformation();
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
         integer totalProcesses = executionResult.size();
         integer totalExecutedProcesses = 0;
         
@@ -259,7 +294,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     @IsTest static void ApexClassInTheSettingsIfDoesNotExistsShouldThrowError(){
         insert new AsyncTriggerArqSettings__c(Name='Test Process fake class',SObject__c='Opportunity', ApexHelperClassName__c='FakeRandomClassWhoWIllNeverExistsEverAsyncTriggerWithALongLongLongLOngLOnglONgName',
                                            ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,BreakIfError__c=true);
-        AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
                                               true, //insert
@@ -273,7 +308,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         
     	test.startTest();
         try{
-        	ata.Start();
+        	atarc.Start();
         }catch(Exception error)
         {
             errorMessage=error.getMEssage();
@@ -304,7 +339,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
             
             insert testSettings;
         
-        AsyncTriggerArc ata = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
                                               true, //insert
@@ -318,11 +353,11 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         
     	test.startTest();
         
-        	ata.Start();
+        atarc.Start();
         
         test.stoptest();
         
-        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= ata.getProcessesExecutionInformation();
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
         integer totalProcesses = executionResult.size();
         integer totalExecutedProcesses = 0;
         
