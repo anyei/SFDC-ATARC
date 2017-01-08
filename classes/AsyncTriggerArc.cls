@@ -113,7 +113,7 @@ public class AsyncTriggerArc {
     
     
     /*
-     * @constructor
+     * @constructor 1
      * 
      */
     public AsyncTriggerArc(string sObjectName, string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
@@ -140,6 +140,24 @@ public class AsyncTriggerArc {
         
     }
     
+    /*
+     * @constructor 2
+     * 
+     */
+    public AsyncTriggerArc(string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
+       
+        this( newList[0].getSObjectType().getDescribe().getName(),
+            triggerName,
+            isBefore,
+            isAfter,
+            isInsert,
+            isUpdate,
+            isDelete,
+            newList,
+            oldList,
+            newMap,
+            oldMap);
+         }
     
     public Map<string,AsyncTriggerArcProcessInfo> getProcessesExecutionInformation(){
         Map<string,AsyncTriggerArcProcessInfo> result= new Map<string,AsyncTriggerArcProcessInfo>();
