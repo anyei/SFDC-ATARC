@@ -27,7 +27,7 @@ With ATARC besides what I just said above, you could control the order of execut
 
 You may manually create the class within your org and copy paste the content of AsyncTriggerArc class as for the AsyncTriggerArcTest and create the custom settings AsyncTriggerArqSettings__c but that's the long path, just use the button above its gonna be easier. 
 
-### Implementation & Usage
+### The simplest form of Implementation & Usage
 _____
 Because nothing is magic, actually we have to do some setup. The first step is to tell the trigger you are using ATARC.
 Let's take a look at how the triggers where you want to implement ATARC should be.
