@@ -1,5 +1,5 @@
 /*
- * Created By : Angel Robles 
+ * Created By : Angel Robles (anyei)
  * Partners :  Anthony del Rosario
  * Created Date: 1/6/2017
  * Purpose: In a nutshell, runs processes out of a custom setting. The custom setting has a field indicating
@@ -433,6 +433,10 @@ public class AsyncTriggerArc {
         public void setFailed(){
             processSucceeded = false;
         }
+        
+        public string getProcessStatus(string processName){
+            return globalConfig.itemDetails.containsKey(processName) ? globalConfig.itemDetails.get(processName).status : null;
+        }
     }
     
     
@@ -449,20 +453,22 @@ public class AsyncTriggerArc {
         }
         public void execute(QueueableContext context){
             
-            //run the class of the current setting
-            object output =  RunClass(config, currentSetting);
-            
-            //store the output of the current invocation
-            config.triggerContext.customData.put(currentSetting.Name,output);
-           
-            
-            //when the starttest and stoptest happen
+            //to fix specific issue
+            //globalConfig is empty when queueable is executed
+            //
+            //Also in the unit test when the starttest and stoptest happen
             //every async jobs or processes are treated as synchronous
             //but a new transaction is created anyway
             //globalConfig will be empty by that time 
             //assigning the config to the globalConfig will allow unit test context
             //to have the config data
             globalConfig = config;
+            
+            //run the class of the current setting
+            object output =  RunClass(config, currentSetting);
+            
+            //store the output of the current invocation
+            config.triggerContext.customData.put(currentSetting.Name,output);
             
             
             //chain operations
@@ -491,6 +497,16 @@ public class AsyncTriggerArc {
         }
         public void execute(QueueableContext context){
             
+            //to fix specific issue
+            //globalConfig is empty when queueable is executed
+            //
+            //Also in the unit test when the starttest and stoptest happen
+            //every async jobs or processes are treated as synchronous
+            //but a new transaction is created anyway
+            //globalConfig will be empty by that time 
+            //assigning the config to the globalConfig will allow unit test context
+            //to have the config data
+            globalConfig = config;
             
             //run the class of the current setting
             object output =  RunClass(config, currentSetting);
@@ -498,14 +514,6 @@ public class AsyncTriggerArc {
             //store the output of the current invocation
             config.triggerContext.customData.put(currentSetting.Name,output);
            
-            
-             //when the starttest and stoptest happen
-            //every async jobs or processes are treated as synchronous
-            //but a new transaction is created anyway
-            //globalConfig will be empty by that time 
-            //assigning the config to the globalConfig will allow unit test context
-            //to have the config data
-            globalConfig = config;
             
             //chain operations
             //call the next operation according to the order.
