@@ -101,7 +101,7 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
 }
 ```
 
-The last piece in order to make this work is to hook this class into the engine and tell the engine OpportunityBeforeTrigger is who will execute this class or process (let's call it process). So the way to hook this up to the trigger is via a Custom Setting entry, you should have a custom setting called AsyncTriggerArqSettings. This is how the entry should look:
+The last piece in order to make this work is to hook this class into the engine and tell the engine OpportunityBeforeTrigger is who will execute this class or process (let's call it process). So the way to hook this up to the trigger is via a Custom Setting entry, you should have a custom setting called **AsyncTriggerArqSettings**. This is how the entry should look:
 
 | name           | ApexHelperClassName | SObject     | ApexTriggerName          | Event        | IsActive | isAsync | Order | breakIfError | DependsOn |
 |----------------|---------------------|-------------|--------------------------|--------------|----------|---------|-------|--------------|-----------|
@@ -132,5 +132,6 @@ Please refer to the <a href="https://github.com/anyei/SFDC-ATARC/issues">Issues<
 ### Pending
 1. Revisit the code to optimize and document better
 2. Update the repos readme, is not complete yet.
+3. Test this with delete triggers.
 
 
