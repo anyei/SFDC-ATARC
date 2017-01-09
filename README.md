@@ -6,7 +6,9 @@ Triggers are flooded with functionalities and salesforce governor limits are a p
 
 Imagine you could found a framework that allows you to fight against the de-facto governor limit situation. Let me introduce ATARC (heroic music playing in the background). 
 
-I understand there are many good trigger frameworks out there already but I also understand none of them treated the topic as this approach.
+I understand there are many good trigger frameworks out there already but I also understand none of them treated the topic as this approach. 
+
+Please go to our wiki for a more detailed information! https://github.com/anyei/SFDC-ATARC/wiki
 
 # What is ATARC
 
