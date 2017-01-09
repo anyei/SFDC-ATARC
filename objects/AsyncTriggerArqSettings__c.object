@@ -31,14 +31,32 @@
         <type>Checkbox</type>
     </fields>
     <fields>
-        <fullName>DependsOn__c</fullName>
+        <fullName>DependsOnError__c</fullName>
         <externalId>false</externalId>
-        <label>DependsOn</label>
+        <label>DependsOnFailure</label>
         <length>255</length>
         <required>false</required>
         <trackTrending>false</trackTrending>
         <type>Text</type>
         <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>DependsOn__c</fullName>
+        <externalId>false</externalId>
+        <label>DependsOnSuccess</label>
+        <length>255</length>
+        <required>false</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Description__c</fullName>
+        <externalId>false</externalId>
+        <label>Description</label>
+        <required>false</required>
+        <trackTrending>false</trackTrending>
+        <type>TextArea</type>
     </fields>
     <fields>
         <fullName>Event__c</fullName>

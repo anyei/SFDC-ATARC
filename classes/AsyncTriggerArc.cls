@@ -244,7 +244,14 @@ public class AsyncTriggerArc {
                        //processes with dependencies should execute only if dependency process executed successfully
                        breakTransaction = Run(config, setting, fromAsync);
                        
-                   }else if(String.isBlank(setting.DependsOn__c))
+                   }else if(String.isNotEmpty(setting.DependsOnError__c) 
+                   && config.ItemDetails.containsKeY(setting.DependsOnError__c) 
+                   && config.ItemDetails.get(setting.DependsOnError__c).status == PROCESS_FAILED){
+                       
+                       //processes with dependencies should execute only if dependency process executed successfully
+                       breakTransaction = Run(config, setting, fromAsync);
+                       
+                   }else if(String.isBlank(setting.DependsOn__c) && String.isBlank(setting.DependsOnError__c))
                    {   
                        //processes with no dependencies should run
                        breakTransaction = Run(config,setting, fromAsync);
