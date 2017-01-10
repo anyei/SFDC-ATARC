@@ -24,9 +24,12 @@ public class AsyncTriggerArc {
     //global maps, lists, config
     @TestVisible static Map<string,Map<string, map<string, AsyncTriggerArqSettings__c[]>>> arqSettings;    
     
-    @TestVisible static AsyncTriggerArcConfig globalConfig;    
+    @TestVisible static AsyncTriggerArcConfig globalConfig;   
+    
+    @TestVisible static Map<string,Map<string,Map<string, integer>>> triggerExecTrack;
     
     static boolean orderProcessed;
+    static boolean stopPropagation;
     
     /****************/
     // INSTACE VARIABLES
@@ -41,6 +44,8 @@ public class AsyncTriggerArc {
         arqSettings = new Map<string,Map<string, Map<string, AsyncTriggerArqSettings__c[]>>>();        
         
         globalConfig = new AsyncTriggerArcConfig();
+        
+        triggerExecTrack = new Map<string,Map<string,Map<string, integer>>>();
         
         orderProcessed = false;
         
@@ -201,8 +206,19 @@ public class AsyncTriggerArc {
      */  
     public void Start(){
         
+        /********************************/
+        //propagation cancelation feature
+        if(getTriggerTrack() >=  1) return;
+        
+        updateTriggerTrack();
+        /*********************************/
+        
+        
+        /*********************************/
+        //order feature        
 		if(!orderProcessed)        
             processOrder(true);
+        /*********************************/
         
         if(arqSettings.containsKey(sObjectName) 
            && arqSettings.get(sObjectName).containsKey(triggerName)
@@ -230,11 +246,14 @@ public class AsyncTriggerArc {
             //this is key to get rid of the processed processes from the queue
             AsyncTriggerArqSettings__c setting = config.chain.remove(0);
             
+            /**********************************/
             //simple skip functionality
             if(config.processToSkip.contains(setting.name) || config.objectToSkip.contains(setting.SObject__c)) break;
+            /***********************************/
             
             boolean breakTransaction = false;
             system.debug(setting.ApexHelperClassName__c);
+            
             if(setting != null){                          
                 
                 if(String.isNotEmpty(setting.DependsOn__c) 
@@ -286,19 +305,30 @@ public class AsyncTriggerArc {
         boolean isAsync = false;
         
         if(setting.isAsync__c){
+            /**********************************/
+            //async feature
+            //
+            
             system.debug(setting.ApexHelperClassName__c + ' from async ' + setting.Name);
+            
             //async processes should break the upper loop
             //so that only one active process thread is working            
             AsyncTriggerArcQueueable asyncWorker = new AsyncTriggerArcQueueable(config, setting);
             system.enqueueJob(asyncWorker);
+            
             isAsync = true;
         }else if(fromAsync && !Test.isRunningTest()){
-           system.debug('helper class synchronous from async '+setting.Name);
+            
+            system.debug('helper class synchronous from async '+setting.Name);
+            
+            /***************************/
+            //synchronous processes executed from within async transaction should have their own thread
             //queuable to start a fresh transaction when a synchronous transactions needs to run after
             //an async transaction
             AsyncTriggerArcSynchronousProcess asyncWorker = new AsyncTriggerArcSynchronousProcess(config, setting);
             system.enqueueJob(asyncWorker);
             isAsync = true;
+            
         }else{
             
             //after class is executed then get the output if any
@@ -328,6 +358,9 @@ public class AsyncTriggerArc {
         try{
             t = Type.forName(setting.ApexHelperClassName__c);
         }catch(Exception err){
+            
+            /**********************************/
+            //break transaction if error feature
             if(setting.BreakIfError__c)
                 throw err;
         }
@@ -336,6 +369,9 @@ public class AsyncTriggerArc {
             try{
                 instance =(IAsyncTriggerArc)t.newInstance();
             }catch(Exception err){
+                
+                /**********************************/
+                //break transaction if error feature
                 if(setting.BreakIfError__c)
                 throw err;
                 
@@ -349,7 +385,11 @@ public class AsyncTriggerArc {
             if(instance == null)
                 throw new AsyncTriggerArcException('Not able to instantiate Apex Class '+setting.ApexHelperClassName__c);
             
+            
+            //passing data in between processes feature
+            //the output represents the data output from a process
             output = instance.execute(config.triggerContext);
+            
             long totalTime = system.datetime.now().millisecond() - startTime;
                 
             UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED )  );
@@ -362,6 +402,9 @@ public class AsyncTriggerArc {
             UpdateStatus(config, setting, PROCESS_FAILED);
             UpdateProcessTime(config, setting, totalTime);
             
+            
+            /**********************************/
+            //break transaction if error feature
             if(setting.BreakIfError__c)
                 throw err;
         }
@@ -370,6 +413,27 @@ public class AsyncTriggerArc {
         
     }
     
+    void updateTriggerTrack(){
+        if(!triggerExecTrack.containsKey(sObjectName))
+            triggerExecTrack.put(sObjectName, new Map<string, Map<string, integer>>());
+        if(!triggerExecTrack.get(sObjectName).containsKey(triggerName))
+            triggerExecTrack.get(sObjectName).put(triggerName, new Map<string, integer>());
+        
+        
+        triggerExecTrack.get(SObjectName).get(triggerName).put(
+            triggerEventTxt, 
+            ( 
+                triggerExecTrack.get(sObjectName).get(triggerName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerName).get(triggerEventTxt) + 1 : 1
+            ) );
+    }
+    
+    integer getTriggerTrack(){  
+        return (
+            	triggerExecTrack.containsKey(sObjectName)
+            	&& triggerExecTrack.get(sObjectName).containsKey(triggerName)
+            	&& triggerExecTrack.get(sObjectName).get(triggerName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerName).get(triggerEventTxt) : 0
+               );
+    }
     /*
 * Updates the status of the configuration
 */
