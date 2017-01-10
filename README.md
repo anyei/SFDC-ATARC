@@ -115,7 +115,7 @@ So, the **name** field is just an irrelevant identifier, but you can use this fi
 
 If you were to have more apex classes (processes) to hook them into the trigger, you will need to add multiple entries to the custom setting.. this is how it would look.
 
-| name | ApexHelperClassName | SObject | ApexTriggerName | Event | IsActive | isAsync | Order | breakIfError | DependsOn |
+| name | ApexHelperClassName | SObject | ApexTriggerName | Event | IsActive | isAsync | Order | breakIfError | DependsOnSuccess |
 |---------------------------|---------------------|-------------|--------------------------|--------------|----------|---------|-------|--------------|-----------|
 | NameChanger1.0 | NameChanger | Opportunity | OpportunityBeforeTrigger | BeforeInsert | true | false | 1 | true |  |
 | WinProbabilityCalc | ProCalculator | Opportunity | OpportunityBeforeTrigger | BeforeInsert | true | false | 2 | false |  |
