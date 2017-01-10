@@ -146,7 +146,7 @@ public class AsyncTriggerArc {
      */
     public AsyncTriggerArc(string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
        
-        this( newList[0].getSObjectType().getDescribe().getName(),
+        this( (isDelete == true ? oldList[0].getSObjectType().getDescribe().getName() :  newList[0].getSObjectType().getDescribe().getName()),
             triggerName,
             isBefore,
             isAfter,
