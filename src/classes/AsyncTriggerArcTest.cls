@@ -223,6 +223,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 3') == null, 'Expected is null Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 3')+'"');
     }
     
+    
     @IsTest static void UsingSkipPRocessShouldNotExecuteSpecificProcess(){
         AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before

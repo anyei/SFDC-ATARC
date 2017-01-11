@@ -1,22 +1,22 @@
 /*
- * Created By : Angel Robles (anyei)
- * Partners :  Anthony del Rosario
- * Created Date: 1/6/2017
- * Purpose: In a nutshell, runs processes out of a custom setting. The custom setting has a field indicating
- * 			the apex class implementing IAsyncTriggerArc interface which is the code to execute (the process), 
- * 			order of execution, a flag to make it active or not (if not active it will not run), a flag to force it to run
- * 			as queueable, a field to control dependencies (process A is dependent on process B to run, if process B does not run or 
- * 			has an exception in the code process A will not run) and in addition to all that this also has the capability to pass output from one process
- * 			to the next one within the same transaction.  
- *  
- * Test Classes: AsyncTriggerArcTest
- */ 
+* Created By : Angel Robles (anyei)
+* Partners :  Anthony del Rosario
+* Created Date: 1/6/2017
+* Purpose: In a nutshell, runs processes out of a custom setting. The custom setting has a field indicating
+* 			the apex class implementing IAsyncTriggerArc interface which is the code to execute (the process), 
+* 			order of execution, a flag to make it active or not (if not active it will not run), a flag to force it to run
+* 			as queueable, a field to control dependencies (process A is dependent on process B to run, if process B does not run or 
+* 			has an exception in the code process A will not run) and in addition to all that this also has the capability to pass output from one process
+* 			to the next one within the same transaction.  
+*  
+* Test Classes: AsyncTriggerArcTest
+*/ 
 public class AsyncTriggerArc {
     
     
     /*********/
-     //Static Variables
-     /******/ 
+    //Static Variables
+    /******/ 
     //statuses tokens
     public static final string PROCESS_EXECUTED = 'Executed';
     public static final string PROCESS_FAILED = 'Failed';
@@ -51,11 +51,11 @@ public class AsyncTriggerArc {
         
     }
     
-
+    
     /*
-     * @method
-     * Process the order of the items retrieve from the config settings
-     */ 
+* @method
+* Process the order of the items retrieve from the config settings
+*/ 
     @TestVisible static void processOrder(boolean firstTime){
         Map<string,Map<string,Map<string, List<integer>>>> orderLogic = new Map<string,Map<string,Map<string, List<integer>>>>();
         
@@ -84,7 +84,7 @@ public class AsyncTriggerArc {
             if(setting.IsActive__c && !globalConfig.processToSkip.contains(setting.name) && !globalConfig.objectToSkip.contains(setting.SObject__c)){
                 
                 if(firstTime)
-                	globalConfig.ItemDetails.put(setting.name, new AsyncTriggerArcProcessInfo() );
+                    globalConfig.ItemDetails.put(setting.name, new AsyncTriggerArcProcessInfo() );
                 
                 orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).sort();
                 List<integer> orderOfProcess = orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c);
@@ -118,9 +118,9 @@ public class AsyncTriggerArc {
     
     
     /*
-     * @constructor 1
-     * 
-     */
+* @constructor 1
+* 
+*/
     public AsyncTriggerArc(string sObjectName, string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
         
         if(String.isEmpty(sObjectName) || String.isEmpty(triggerName))
@@ -146,23 +146,25 @@ public class AsyncTriggerArc {
     }
     
     /*
-     * @constructor 2
-     * 
-     */
+* @constructor 2
+* 
+*/
     public AsyncTriggerArc(string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
-       
+        
         this( (isDelete == true ? oldList[0].getSObjectType().getDescribe().getName() :  newList[0].getSObjectType().getDescribe().getName()),
-            triggerName,
-            isBefore,
-            isAfter,
-            isInsert,
-            isUpdate,
-            isDelete,
-            newList,
-            oldList,
-            newMap,
-            oldMap);
-         }
+             triggerName,
+             isBefore,
+             isAfter,
+             isInsert,
+             isUpdate,
+             isDelete,
+             newList,
+             oldList,
+             newMap,
+             oldMap);
+    }
+    
+    
     
     public Map<string,AsyncTriggerArcProcessInfo> getProcessesExecutionInformation(){
         Map<string,AsyncTriggerArcProcessInfo> result= new Map<string,AsyncTriggerArcProcessInfo>();
@@ -170,23 +172,33 @@ public class AsyncTriggerArc {
         return result;
     }
     /*
-     * @method
-     * ADDSKIP
-     */ 
+* @method
+* ADDSKIP
+*/ 
     public AsyncTriggerArc AddProcessSkip(string processName){
         globalConfig.processToSkip.add(processName);        
         return this;
-	}
+    }
     
     public AsyncTriggerArc AddSObjectSkip(string SObjectName){
         globalConfig.objectToSkip.add(SObjectName);
         return this;
     }
     
+    public AsyncTriggerArc AddTriggerSkip(string apexTriggerName){
+        globalConfig.triggerSkip.add(apexTriggerName);
+        return this;
+    }
+    
+    public AsyncTriggerArc AddEventSkip(string eventName){
+        globalCOnfig.eventSkip.add(eventName);
+        return this;
+    }
+    
     /*
-     * @method
-     * REMOVESKIP
-     */ 
+* @method
+* REMOVESKIP
+*/ 
     public AsyncTriggerArc removeProcessSkip(string processName){
         if(globalConfig.processToSkip.contains(processName))
             globalConfig.processToSkip.remove(processName);        
@@ -200,10 +212,24 @@ public class AsyncTriggerArc {
         return this;
     }
     
+    public AsyncTriggerArc removeTriggerSkip(string apexTriggerName){
+        if(globalConfig.triggerSkip.contains(apexTriggerName))
+            globalConfig.triggerSkip.remove(apexTriggerName);
+        
+        return this;
+    }
+    
+    public AsyncTriggerArc removeEventSkip(string eventName){
+        if(globalConfig.eventSkip.contains(eventName))
+            globalConfig.eventSkip.remove(eventName);
+        
+        return this;
+    }
+    
     /*
-     * @method
-     * START
-     */  
+* @method
+* START
+*/  
     public void Start(){
         
         /********************************/
@@ -216,7 +242,7 @@ public class AsyncTriggerArc {
         
         /*********************************/
         //order feature        
-		if(!orderProcessed)        
+        if(!orderProcessed)        
             processOrder(true);
         /*********************************/
         
@@ -248,7 +274,10 @@ public class AsyncTriggerArc {
             
             /**********************************/
             //simple skip functionality
-            if(config.processToSkip.contains(setting.name) || config.objectToSkip.contains(setting.SObject__c)) break;
+            if(config.processToSkip.contains(setting.name) 
+               || config.eventSkip.contains(setting.Event__c)
+               || config.triggerSkip.contains(setting.ApexTriggerName__c)               
+               || config.objectToSkip.contains(setting.SObject__c)) break;
             /***********************************/
             
             boolean breakTransaction = false;
@@ -264,23 +293,23 @@ public class AsyncTriggerArc {
                        breakTransaction = Run(config, setting, fromAsync);
                        
                    }else if(String.isNotEmpty(setting.DependsOnError__c) 
-                   && config.ItemDetails.containsKeY(setting.DependsOnError__c) 
-                   && config.ItemDetails.get(setting.DependsOnError__c).status == PROCESS_FAILED){
-                       
-                       //processes with dependencies should execute only if dependency process executed successfully
-                       breakTransaction = Run(config, setting, fromAsync);
-                       
-                   }else if(String.isBlank(setting.DependsOn__c) && String.isBlank(setting.DependsOnError__c))
-                   {   
-                       //processes with no dependencies should run
-                       breakTransaction = Run(config,setting, fromAsync);
-                       
-                   }else if(config.Chain.size() > 0){
-                       
-                       //processes with dependencies but dependency didn't executed successfully should be skipped
-                       //the next process in the list should be executed
-                       continue;
-                   }
+                            && config.ItemDetails.containsKeY(setting.DependsOnError__c) 
+                            && config.ItemDetails.get(setting.DependsOnError__c).status == PROCESS_FAILED){
+                                
+                                //processes with dependencies should execute only if dependency process executed successfully
+                                breakTransaction = Run(config, setting, fromAsync);
+                                
+                            }else if(String.isBlank(setting.DependsOn__c) && String.isBlank(setting.DependsOnError__c))
+                            {   
+                                //processes with no dependencies should run
+                                breakTransaction = Run(config,setting, fromAsync);
+                                
+                            }else if(config.Chain.size() > 0){
+                                
+                                //processes with dependencies but dependency didn't executed successfully should be skipped
+                                //the next process in the list should be executed
+                                continue;
+                            }
                 
             }else //no more process to execute, setting shoudl be null hence loop should break{
             {
@@ -293,7 +322,7 @@ public class AsyncTriggerArc {
             }
         }
     }
-     
+    
     
     
     /**********************************/
@@ -373,7 +402,7 @@ public class AsyncTriggerArc {
                 /**********************************/
                 //break transaction if error feature
                 if(setting.BreakIfError__c)
-                throw err;
+                    throw err;
                 
             }
         }        
@@ -391,7 +420,7 @@ public class AsyncTriggerArc {
             output = instance.execute(config.triggerContext);
             
             long totalTime = system.datetime.now().millisecond() - startTime;
-                
+            
             UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED )  );
             
             UpdateProcessTime(config, setting, totalTime);
@@ -429,10 +458,10 @@ public class AsyncTriggerArc {
     
     integer getTriggerTrack(){  
         return (
-            	triggerExecTrack.containsKey(sObjectName)
-            	&& triggerExecTrack.get(sObjectName).containsKey(triggerName)
-            	&& triggerExecTrack.get(sObjectName).get(triggerName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerName).get(triggerEventTxt) : 0
-               );
+            triggerExecTrack.containsKey(sObjectName)
+            && triggerExecTrack.get(sObjectName).containsKey(triggerName)
+            && triggerExecTrack.get(sObjectName).get(triggerName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerName).get(triggerEventTxt) : 0
+        );
     }
     /*
 * Updates the status of the configuration
@@ -454,18 +483,23 @@ public class AsyncTriggerArc {
         public decimal processTime {get;set;}
     }
     
-    public class AsyncTriggerArcConfig{
+    class AsyncTriggerArcConfig{
         
         public List<AsyncTriggerArqSettings__c> Chain {get;set;}
         public Map<string,AsyncTriggerArcProcessInfo> ItemDetails {get;set;}
         public AsyncTriggerArcContext triggerContext{get;set;}
         public set<string> processToSkip {get;set;}        
-        public set<string> objectToSkip {get;set;}        
+        public set<string> objectToSkip {get;set;} 
+        public set<string> triggerSkip {get;set;}
+        public set<string> eventSkip {get;set;}
+        
         public AsyncTriggerArcConfig(){
-             ItemDetails = new Map<string,AsyncTriggerArcProcessInfo>();        
-             triggerContext = new AsyncTriggerArcContext();             
-             processToSkip = new set<string>();
+            ItemDetails = new Map<string,AsyncTriggerArcProcessInfo>();        
+            triggerContext = new AsyncTriggerArcContext();             
+            processToSkip = new set<string>();
             objectToSkip = new set<string>();
+            triggerSkip = new set<string>();
+            eventSkip = new set<string>();
             
         }
         
@@ -554,10 +588,10 @@ public class AsyncTriggerArc {
     
     
     /*
-     * Queueable to run when synchronous execution follow an async execution
-     * note: because of how apex test engine works, this queuable is not executed
-     * from unit testing (test engine does not like to run two queueable jobs in chain)
-     */ 
+* Queueable to run when synchronous execution follow an async execution
+* note: because of how apex test engine works, this queuable is not executed
+* from unit testing (test engine does not like to run two queueable jobs in chain)
+*/ 
     public class AsyncTriggerArcSynchronousProcess implements Queueable{
         public AsyncTriggerArcConfig Config {get;set;}
         
@@ -584,7 +618,7 @@ public class AsyncTriggerArc {
             
             //store the output of the current invocation
             config.triggerContext.customData.put(currentSetting.Name,output);
-           
+            
             
             //chain operations
             //call the next operation according to the order.
@@ -593,7 +627,7 @@ public class AsyncTriggerArc {
         }
         
     }
-      
+    
     
     /*
 * General Interface
