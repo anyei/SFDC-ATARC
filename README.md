@@ -115,7 +115,7 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
 }
 ```
 
-#### Add record to the custom setting AsyncTriggerArqSettings
+### Add record to the custom setting AsyncTriggerArqSettings
 
 The last piece in order to make this work is to hook your apex class into the engine and tell the engine what is the trigger executing the class.
 
