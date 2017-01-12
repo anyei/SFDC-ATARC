@@ -16,7 +16,7 @@ ATARC is a framework or toolset and guideline (i'm not sure how to call it actua
 
 With ATARC besides what I just said above, you could control the order of execution of your processes or unit of work, make them active or inactivate whenever the heck you want and last but not least control dependencies execution.... all of this on runtime! This is the overall idea, i hope you get it.
 
-### Install
+### Install Components into your org
 
 ##### Deploy to Salesforce Button
 
@@ -29,12 +29,22 @@ With ATARC besides what I just said above, you could control the order of execut
 
 You may manually create the class within your org and copy paste the content of AsyncTriggerArc class as for the AsyncTriggerArcTest and create the custom settings AsyncTriggerArqSettings__c but that's the long path, just use the button above its gonna be easier. 
 
-### The simplest form of Implementation & Usage
+### Resume of logical steps to implement this framework
+
+Based on friends feedbacks, here a resume of the steps needed to implement this framework:
+
+* Create an instance of the ATARC engine within the trigger.
+* Create apex handler class that implements the interface AsyncTriggerArc.IAsyncTriggerArc.
+* Add record to the custom setting AsyncTriggerArqSettings.
+
+
+
+## The simplest form of Implementation & Usage
 _____
 Because nothing is magic, actually we have to do some setup. The first step is to tell the trigger you are using ATARC.
 Let's take a look at how the triggers where you want to implement ATARC should be.
 
-####  Implementing with Fresh empty Triggers
+####  Create an instance of the ATARC engine within the trigger
 
 With a fresh trigger with no code, you just need to instantiate an ATARC object passing the necessary parameters:
 
@@ -61,7 +71,7 @@ In the code above, the constructor accept a bunch of parameters, mainly taken fr
 
 Now that we have our ATARC instance within our trigger, let's build processes to inject them into this trigger. Real apex classes should be created and of course implement a specific interface.
 
-### Apex Classes (processes)
+### Create apex handler class that implements the interface AsyncTriggerArc.IAsyncTriggerArc
 
 This is how you should implement your helper class.
 
@@ -80,7 +90,9 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
 
 ```
 
-The above apex class is a simple implementation of the interface **AsyncTriggerArc.IAsyncTriggerArc**. It is mandatory to implement this interface. So far it doesn't do much, it is just returning null. The parameter **triggerContext** is provided by ATARC engine and contains a lot of trigger context variables such as isBefore, isAfter, isInsert etc.
+The above apex class is a simple implementation of the interface **AsyncTriggerArc.IAsyncTriggerArc**, this is a process for ATARC. It is mandatory to implement this interface. 
+
+The example above doesn't do much, it is just returning null value. The parameter **triggerContext** is provided by ATARC engine and contains a lot of trigger context variables such as isBefore, isAfter, isInsert etc.
 
 Now in this example, let's put some functionality to this class, it will change the name of opportunities to 'name changed' (I know this is super silly and not a real or common business scenario but i just want to explain how to implement this ok!).
 
@@ -103,9 +115,13 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
 }
 ```
 
-#### Hook the handler apex class into the trigger
+#### Add record to the custom setting AsyncTriggerArqSettings
 
-The last piece in order to make this work is to hook this class into the engine and tell the engine OpportunityBeforeTrigger is who will execute this class or process (let's call it process). So the way to hook this up to the trigger is via a Custom Setting entry, you should have a custom setting called **AsyncTriggerArqSettings**. This is how the entry should look:
+The last piece in order to make this work is to hook your apex class into the engine and tell the engine what is the trigger executing the class.
+
+In the example above our handler apex class is NameChanger and the trigger executing it is OpportunityBeforeTrigger. 
+
+So what we need is a Custom Setting entry, you should have the custom setting called **AsyncTriggerArqSettings** within this repository. This is how the entry should look:
 
 | name           | ApexHelperClassName | SObject     | ApexTriggerName          | Event        | IsActive | isAsync | Order | breakIfError | DependsOnSuccess |
 |----------------|---------------------|-------------|--------------------------|--------------|----------|---------|-------|--------------|-----------|
@@ -113,7 +129,10 @@ The last piece in order to make this work is to hook this class into the engine 
 |                |                     |             |                          |              |          |         |       |              |           |
 |                |                     |             |                          |              |          |         |       |              |           |
 
+
 So, the **name** field is just an irrelevant identifier, but you can use this field to give a name to the process, the rest of the fields are sort of self explanatories but i'll include a section dedicated to the meaning of each of these fields later. For now just take a good look at this table.
+
+**Here the custom setting reference for more info https://github.com/anyei/SFDC-ATARC/wiki/Configuration**
 
 If you were to have more apex classes (processes) to hook them into the trigger, you will need to add multiple entries to the custom setting.. this is how it would look.
 
