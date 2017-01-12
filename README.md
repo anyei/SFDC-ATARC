@@ -44,7 +44,7 @@ _____
 Because nothing is magic, actually we have to do some setup. The first step is to tell the trigger you are using ATARC.
 Let's take a look at how the triggers where you want to implement ATARC should be.
 
-####  Create an instance of the ATARC engine within the trigger
+####  Create an instance of the ATARC engine within the trigger (a.k.a atarc engine)
 
 With a fresh trigger with no code, you just need to instantiate an ATARC object passing the necessary parameters:
 
@@ -71,7 +71,7 @@ In the code above, the constructor accept a bunch of parameters, mainly taken fr
 
 Now that we have our ATARC instance within our trigger, let's build processes to inject them into this trigger. Real apex classes should be created and of course implement a specific interface.
 
-### Create apex handler class that implements the interface AsyncTriggerArc.IAsyncTriggerArc
+### Create apex handler class that implements the interface AsyncTriggerArc.IAsyncTriggerArc (a.k.a atarc process)
 
 This is how you should implement your helper class.
 
@@ -115,7 +115,7 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
 }
 ```
 
-### Add record to the custom setting AsyncTriggerArqSettings
+### Add record to the custom setting AsyncTriggerArqSettings (a.k.a atarc injector)
 
 The last piece in order to make this work is to hook your apex class into the engine and tell the engine what is the trigger executing the class.
 
