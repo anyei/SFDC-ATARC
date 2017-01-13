@@ -555,7 +555,7 @@ public class AsyncTriggerArc {
 * Queueable class 
 * Runs when async is needed
 */
-    public class AsyncTriggerArcQueueable implements Queueable{
+    class AsyncTriggerArcQueueable implements Queueable{
         public AsyncTriggerArcConfig Config {get;set;}
         public AsyncTriggerArqSettings__c currentSetting {get;set;}
         public AsyncTriggerArcQueueable(AsyncTriggerArcConfig conf, AsyncTriggerArqSettings__c setting){
@@ -598,7 +598,7 @@ public class AsyncTriggerArc {
 * note: because of how apex test engine works, this queuable is not executed
 * from unit testing (test engine does not like to run two queueable jobs in chain)
 */ 
-    public class AsyncTriggerArcSynchronousProcess implements Queueable{
+    class AsyncTriggerArcSynchronousProcess implements Queueable{
         public AsyncTriggerArcConfig Config {get;set;}
         
         public AsyncTriggerArqSettings__c currentSetting {get;set;}
