@@ -63,7 +63,7 @@ public class AsyncTriggerArc {
         
         for(AsyncTriggerArqSettings__c setting : AsyncTriggerArqSettings__c.GetAll().values()){
             
-            if(setting.IsActive__c && !globalConfig.processToSkip.contains(setting.name) && !globalConfig.objectToSkip.contains(setting.SObject__c)){
+            if(setting.IsActive__c && globalSkip == false && !globalConfig.processToSkip.contains(setting.name) && !globalConfig.objectToSkip.contains(setting.SObject__c)){
                 
                 //order logic.. as we dont have soql we must order by our self
                 if(!orderLogic.containsKey(setting.SObject__c))
@@ -83,7 +83,7 @@ public class AsyncTriggerArc {
         
         
         for(AsyncTriggerArqSettings__c setting : AsyncTriggerArqSettings__c.GetAll().values()){
-            if(setting.IsActive__c && !globalConfig.processToSkip.contains(setting.name) && !globalConfig.objectToSkip.contains(setting.SObject__c)){
+            if(setting.IsActive__c && globalSkip == false && !globalConfig.processToSkip.contains(setting.name) && !globalConfig.objectToSkip.contains(setting.SObject__c)){
                 
                 if(firstTime)
                     globalConfig.ItemDetails.put(setting.name, new AsyncTriggerArcProcessInfo() );
