@@ -102,9 +102,9 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
     
     public object execute(AsyncTriggerArc.AsyncTriggerArcContext triggerContext)
     {  
-        Map<id, Opportunity> ops = (Map<id, Opportunity>)triggerContext.newMap;
+        List<Opportunity> ops = (List<Opportunity>)triggerContext.newList;
         
-        for(Opportunity op : ops.values()){
+        for(Opportunity op : ops){
             op.Name = ' name changer ';
         }
         
