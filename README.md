@@ -8,7 +8,7 @@ Imagine you could found a framework that allows you to fight against the de-fact
 
 I understand there are many good trigger frameworks out there already but I also understand none of them treated the topic as this approach. 
 
-**Please go to our wiki for a more detailed information!** https://github.com/anyei/SFDC-ATARC/wiki
+**Please go to our wiki for a more detailed information and api reference!** https://github.com/anyei/SFDC-ATARC/wiki
 
 # What is ATARC
 
@@ -134,27 +134,16 @@ So, the **name** field is just an irrelevant identifier, but you can use this fi
 
 **Here the custom setting reference for more info https://github.com/anyei/SFDC-ATARC/wiki/Configuration**
 
-If you were to have more apex classes (processes) to hook them into the trigger, you will need to add multiple entries to the custom setting.. this is how it would look.
-
-| name | ApexHelperClassName | SObject | ApexTriggerName | Event | IsActive | isAsync | Order | breakIfError | DependsOnSuccess |
-|---------------------------|---------------------|-------------|--------------------------|--------------|----------|---------|-------|--------------|-----------|
-| NameChanger1.0 | NameChanger | Opportunity | OpportunityBeforeTrigger | BeforeInsert | true | false | 1 | true |  |
-| WinProbabilityCalc | ProCalculator | Opportunity | OpportunityBeforeTrigger | BeforeInsert | true | false | 2 | false |  |
-| ComplexNotificationCenter | ComplexNotifyier | Opportunity | OpportunityAfterTrigger | AfterInsert | true | false | 1 | true |  |
-
-In the above example, there are more custom setting entries now and if you look closer there is an **order** field which tells the engine what is the order of execution of each apex class (process). 
-
 So.....
 
-And.... we are done setting up. That's it. If you try to insert a new opportunity record, this apex class will be executed by ATARC calling the **execute** method of the interface passing in the ATARC's trigger context. This is the simplest scenario. I know there are a lot more complex scenarios related to triggers, I will try to cover some of them in later posts (I'm not sure where to post them, i'll post here later, maybe a blog or something or.. or.. maybe a github page :) ). 
+And.... we are done setting up. That's it. If you try to insert a new opportunity record, this apex class will be executed by ATARC calling the **execute** method of the interface passing in the ATARC's trigger context. This is the simplest scenario. I know there are a lot more complex scenarios related to triggers, I will try to cover some of them in later posts (I'm not sure where to post them, I'll post here later, maybe a blog or something or.. or.. maybe a github page :) ). 
 
 
 ### Issues
 Please refer to the <a href="https://github.com/anyei/SFDC-ATARC/issues">Issues</a> section.
 
 ### Pending
-1. Revisit the code to optimize and document better
-2. Update the repos readme, is not complete yet.
-3. Test this with delete triggers.
+
+1. Test this with delete triggers.
 
 
