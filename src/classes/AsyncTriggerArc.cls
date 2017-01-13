@@ -29,7 +29,7 @@ public class AsyncTriggerArc {
     @TestVisible static Map<string,Map<string,Map<string, integer>>> triggerExecTrack;
     
     static boolean orderProcessed;
-    static boolean stopPropagation;
+    public static boolean globalSkip;
     
     /****************/
     // INSTACE VARIABLES
@@ -48,6 +48,8 @@ public class AsyncTriggerArc {
         triggerExecTrack = new Map<string,Map<string,Map<string, integer>>>();
         
         orderProcessed = false;
+        
+        globalSkip = false;
         
     }
     
@@ -133,6 +135,7 @@ public class AsyncTriggerArc {
         globalConfig.triggerContext.newList = newList;
         globalConfig.triggerContext.oldMap = oldmap;
         globalConfig.triggerContext.newMap = newMap;
+        globalConfig.skipEverything = globalSkip;
         
         //the chain of process to execute should be reset every time 
         //a trigger is executed
@@ -274,7 +277,8 @@ public class AsyncTriggerArc {
             
             /**********************************/
             //simple skip functionality
-            if(config.processToSkip.contains(setting.name) 
+            if(config.skipEverything == true 
+               ||config.processToSkip.contains(setting.name) 
                || config.eventSkip.contains(setting.Event__c)
                || config.triggerSkip.contains(setting.ApexTriggerName__c)               
                || config.objectToSkip.contains(setting.SObject__c)) break;
@@ -492,6 +496,7 @@ public class AsyncTriggerArc {
         public set<string> objectToSkip {get;set;} 
         public set<string> triggerSkip {get;set;}
         public set<string> eventSkip {get;set;}
+        public boolean skipEverything {get;set;}
         
         public AsyncTriggerArcConfig(){
             ItemDetails = new Map<string,AsyncTriggerArcProcessInfo>();        
@@ -500,6 +505,7 @@ public class AsyncTriggerArc {
             objectToSkip = new set<string>();
             triggerSkip = new set<string>();
             eventSkip = new set<string>();
+            skipEverything = false;
             
         }
         
