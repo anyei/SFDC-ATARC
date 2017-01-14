@@ -70,7 +70,7 @@
     </fields>
     <fields>
         <fullName>IsActive__c</fullName>
-        <defaultValue>false</defaultValue>
+        <defaultValue>true</defaultValue>
         <externalId>false</externalId>
         <label>IsActive</label>
         <trackTrending>false</trackTrending>
@@ -99,7 +99,7 @@
     </fields>
     <fields>
         <fullName>isAsync__c</fullName>
-        <defaultValue>true</defaultValue>
+        <defaultValue>false</defaultValue>
         <externalId>false</externalId>
         <label>isAsync</label>
         <trackTrending>false</trackTrending>
