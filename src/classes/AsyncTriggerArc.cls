@@ -145,7 +145,7 @@ public class AsyncTriggerArc {
         triggerEventTxt = ( (globalConfig.triggerContext.isBefore = isBefore) ? 'Before' : '') + ( (globalConfig.triggerContext.isAfter = isAfter) ? 'After' : '') +
             ( (globalConfig.triggerContext.IsInsert = isInsert) ? 'Insert' : '') + ( (globalConfig.triggerContext.isUpdate = isUpdate) ? 'Update' : '')+ 
             ( (globalConfig.triggerContext.isDelete = isDelete) ? 'Delete' : '');
-        triggerEventTxt = (globalConfig.triggerContext.isUndelete == true  && globalConfig.triggerContext.isAfter ?  '' : (globalConfig.triggerContext.isUndelete == true ? 'BeforeUndelete' : '') );
+        triggerEventTxt = ( (globalConfig.triggerContext.isUndelete = isUndelete)  && globalConfig.triggerContext.isAfter ?  '' : (globalConfig.triggerContext.isUndelete == true ? 'BeforeUndelete' : triggerEventTxt) );
     }
     
     /*
