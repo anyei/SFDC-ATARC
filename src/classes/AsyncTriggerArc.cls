@@ -123,7 +123,7 @@ public class AsyncTriggerArc {
 * @constructor 1
 * 
 */
-    public AsyncTriggerArc(string sObjectName, string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
+    public AsyncTriggerArc(string sObjectName, string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, boolean isUndelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
         
         if(String.isEmpty(sObjectName) || String.isEmpty(triggerName))
             throw new AsyncTriggerArcException('sObject Name or trigger Name is must be provided');
@@ -145,22 +145,23 @@ public class AsyncTriggerArc {
         triggerEventTxt = ( (globalConfig.triggerContext.isBefore = isBefore) ? 'Before' : '') + ( (globalConfig.triggerContext.isAfter = isAfter) ? 'After' : '') +
             ( (globalConfig.triggerContext.IsInsert = isInsert) ? 'Insert' : '') + ( (globalConfig.triggerContext.isUpdate = isUpdate) ? 'Update' : '')+ 
             ( (globalConfig.triggerContext.isDelete = isDelete) ? 'Delete' : '');
-        
+        triggerEventTxt = (globalConfig.triggerContext.isUndelete == true  && globalConfig.triggerContext.isAfter ?  '' : (globalConfig.triggerContext.isUndelete == true ? 'BeforeUndelete' : '') );
     }
     
     /*
 * @constructor 2
 * 
 */
-    public AsyncTriggerArc(string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
+    public AsyncTriggerArc(string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete,boolean isUndelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
         
-        this( (isDelete == true ? oldList[0].getSObjectType().getDescribe().getName() :  newList[0].getSObjectType().getDescribe().getName()),
+        this( (isDelete == true || isUndelete == true ? oldList[0].getSObjectType().getDescribe().getName() :  newList[0].getSObjectType().getDescribe().getName()),
              triggerName,
              isBefore,
              isAfter,
              isInsert,
              isUpdate,
              isDelete,
+             isUndelete,
              newList,
              oldList,
              newMap,
@@ -521,7 +522,8 @@ public class AsyncTriggerArc {
         public boolean isAfter  {get;set;}
         public boolean isUpdate  {get;set;}
         public boolean isDelete  {get;set;}
-        public boolean isInsert  {get;set;}        
+        public boolean isInsert  {get;set;} 
+        public boolean isUndelete {get;set;}
         public List<SObject> newList{get;set;}
         public List<SObject> oldList {get;set;}
         public Map<id, SObject> oldMap  {get;set;}

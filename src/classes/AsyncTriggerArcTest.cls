@@ -61,6 +61,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                                   true, //insert
                                                   false, 
                                                   false,
+                                                  false,
                                                   new List<Opportunity>(),
                                                   null,
                                                   null, 
@@ -83,6 +84,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               false, 
                                               true, //insert
                                               false, 
+                                              false,
                                               false,
                                               new List<Opportunity>(),
                                               null,
@@ -110,6 +112,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               true, //insert
                                               false, 
                                               false,
+                                              false,
                                               new List<Opportunity>(),
                                               null,
                                               null, 
@@ -134,6 +137,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               false, 
                                               true, //insert
                                               false, 
+                                              false,
                                               false,
                                               new List<Opportunity>(),
                                               null,
@@ -160,6 +164,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               false, 
                                               true, //insert
                                               false, 
+                                              false,
                                               false,
                                               new List<Opportunity>(),
                                               null,
@@ -196,6 +201,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               true, //insert
                                               false, 
                                               false,
+                                              false,
                                               new List<Opportunity>{new Opportunity()},
                                               null,
                                               null, 
@@ -230,6 +236,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               false, 
                                               true, //insert
                                               false, 
+                                              false,
                                               false,
                                               new List<Opportunity>(),
                                               null,
@@ -271,6 +278,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               true, //insert
                                               false, 
                                               false,
+                                              false,
                                               new List<Opportunity>(),
                                               null,
                                               null, 
@@ -300,6 +308,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               false, 
                                               true, //insert
                                               false, 
+                                              false,
                                               false,
                                               new List<Opportunity>(),
                                               null,
@@ -345,6 +354,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                               false, 
                                               true, //insert
                                               false, 
+                                              false,
                                               false,
                                               new List<Opportunity>(),
                                               null,
