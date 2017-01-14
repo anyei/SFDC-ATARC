@@ -57,6 +57,7 @@ trigger OpportunityBeforeTrigger on Opportunity (before insert) {
                                               trigger.isInsert, 
                                               trigger.isUpdate, 
                                               trigger.isDelete,
+                                              trigger.isUndelete,
                                               trigger.new,
                                               trigger.old,
                                               trigger.newmap, 
