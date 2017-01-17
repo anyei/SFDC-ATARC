@@ -6,6 +6,10 @@
 @IsTest
 public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     
+    
+    /*
+     * MOCKING ATARC PROCESS 
+     */
     public object execute(AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
         string result;
         
@@ -58,6 +62,11 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
             else
                 result = string.valueof(integer.valueof(result) + 1);
         }
+        
+        if(triggerContext.getCurrentProcessName() == 'Test Process 13'){
+            triggerContext.setFailed();
+            result = null;
+        }
             
         
         return result;
@@ -65,7 +74,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     }
     
     
-    @testsetup static void setupData(){
+     @testsetup static void setupData(){
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=3, isAsync__c=false),
@@ -84,7 +93,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
             insert testSettings;
 	}
     
-    @IsTest static void TriggerNameNotProvidedShouldThrowAnError(){
+     @IsTest static void TriggerNameNotProvidedShouldThrowAnError(){
        AsyncTriggerArc.AsyncTriggerArcException expectedError = null;
         test.startTest();
         try{
@@ -111,7 +120,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     
     }
     
-    @IsTest static void ProcessOrderShouldOrderBaseOnTheOrderField(){
+     @IsTest static void ProcessOrderShouldOrderBaseOnTheOrderField(){
       AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
@@ -138,7 +147,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                       AsyncTriggerArc.arqSettings.get('Opportunity').get('OpportunityBeforeTrigger').get('BeforeInsert').get(2));
     }
     
-    @IsTest static void TriggerWithNoSubscriptionsShouldNotWork(){
+     @IsTest static void TriggerWithNoSubscriptionsShouldNotWork(){
         AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityAfterTrigger',
                                                true, //before
                                               false, 
@@ -164,7 +173,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(totalProcesses == 5 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 5 totalExecutedProcesses 0) Current is ( totalProcesses '+totalProcesses+' totalExecutedProcesses ' + totalExecutedProcesses +' ) ');
     }
     
-    @IsTest static void TriggerWithShoulbscriptionsShouldExecuteThem(){
+     @IsTest static void TriggerWithShoulbscriptionsShouldExecuteThem(){
         AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
@@ -191,7 +200,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(totalProcesses == 5 && totalExecutedProcesses ==5, 'Expected is (totalProcesses 5 totalExecutedProcesses 5) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
     }
     
-    @IsTest static void TriggerWithSubscriptionsShouldExecuteSuccess(){
+     @IsTest static void TriggerWithSubscriptionsShouldExecuteSuccess(){
         AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
@@ -225,9 +234,8 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         
         system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 3') == null, 'Expected is null Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 3')+'"');
     }
-    
-    
-    @IsTest static void TriggerWithSubscriptionsShouldExecuteSuccessConstructor2(){
+        
+     @IsTest static void TriggerWithSubscriptionsShouldExecuteSuccessConstructor2(){
         AsyncTriggerArc atarc = new AsyncTriggerArc('OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
@@ -262,8 +270,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 3') == null, 'Expected is null Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 3')+'"');
     }
     
-    
-    @IsTest static void UsingSkipPRocessShouldNotExecuteSpecificProcess(){
+     @IsTest static void UsingSkipBypassProcessShouldNotExecuteSpecificProcess(){
         AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
@@ -303,8 +310,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 5') ==  'something from the queueable worker', 'Expected is "something from the queuable worker" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 5')+'"');
     }
     
-    
-     @IsTest static void UsingSkipObjectShouldNotExecuteProcessForSpecificObject(){
+     @IsTest static void UsingSkipBypassObjectShouldNotExecuteProcessForSpecificObject(){
         AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
                                                true, //before
                                               false, 
@@ -333,7 +339,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         
       }
     
-    @IsTest static void ApexClassInTheSettingsIfDoesNotExistsShouldThrowError(){
+     @IsTest static void ApexClassInTheSettingsDoesNotExistsShouldThrowError(){
         insert new AsyncTriggerArqSettings__c(Name='Test Process fake class',SObject__c='Opportunity', ApexHelperClassName__c='FakeRandomClassWhoWIllNeverExistsEverAsyncTriggerWithALongLongLongLOngLOnglONgName',
                                            ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,BreakIfError__c=true);
         AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
@@ -361,8 +367,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(errorMessage != '' && errorMessage != null,'No errors found, current is ' + errorMEssage);
       }
     
-    
-    @IsTest static void NextProcessToRunWhenDependenciesErrorOut(){
+     @IsTest static void NextProcessShouldRunWhenDependenciesErrorOut(){
         
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
@@ -421,8 +426,6 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         
       }
     
-    
-    
      @IsTest static void transactionLoopShouldRun3Times(){
         
          List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
@@ -474,9 +477,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         
         
       }
-    
-    
-    
+        
      @IsTest static void transactionLoopShouldRun1Times(){
         
          List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
@@ -528,11 +529,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         
         
       }
-    
-    
-    
-    
-    
+        
      @IsTest static void transactionLoopShouldRun2Times(){
         
          List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
@@ -581,6 +578,62 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 12') == '2', 'Expected is "2" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 11')+'"');
  
            system.assert(AsyncTriggerArc.globalConfig.triggerContext.transactionLoop ==2, 'Expected is 2 as it ran  current is '+AsyncTriggerArc.globalConfig.triggerContext.transactionLoop);
+        
+        
+      }
+   
+     @IsTest static void triggerContextSetFailedDependentProcessNotRunning(){
+        
+         List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
+         delete toDelete;
+         
+        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
+            new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+ 			new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process 13',
+                                           ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
+         
+           
+        };
+       
+            
+            insert testSettings;
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+                                               true, //before
+                                              false, //after 
+                                              true, //insert
+                                              false, 
+                                              false,
+                                              false,
+                                              new List<Opportunity>(),
+                                              null,
+                                              null, 
+                                              null);
+        string errorMessage = '';
+        
+    	test.startTest();
+        
+        atarc.Start();//first run
+         
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        
+         
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 2 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+		
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessStatus('Test Process 13') == AsyncTriggerArc.PROCESS_FAILED, 'Expected is "Failed" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessStatus('Test Process 13')+'"');
+ 		
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessStatus('Test Process 14') == null, 'Expected is null Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessStatus('Test Process 14')+'"');
+  
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 14')== null, 'Expected is null as it ran  current is '+AsyncTriggerArc.globalConfig.triggerContext.getProcessStatus('Test Process 14'));
         
         
       }

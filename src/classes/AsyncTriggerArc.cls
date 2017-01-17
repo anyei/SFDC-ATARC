@@ -428,8 +428,8 @@ public class AsyncTriggerArc {
             
             //passing data in between processes feature
             //the output represents the data output from a process            
-            output = instance.execute(config.triggerContext);
-            
+            output = instance.execute(config.triggerContext);            
+           
             long totalTime = system.datetime.now().millisecond() - startTime;
             
             UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED )  );
@@ -563,8 +563,7 @@ public class AsyncTriggerArc {
         }
         
         public void debug(string msg){
-            if(debugMode)
-            	system.debug(msg);
+            if(debugMode) system.debug(msg);
         }
     }
     
