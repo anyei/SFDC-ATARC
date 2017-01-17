@@ -67,7 +67,12 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
             triggerContext.setFailed();
             result = null;
         }
-            
+        
+        if(triggerContext.getCurrentProcessName() == 'Test Process 14')
+            result = 'something from 14';
+           
+        if(triggerContext.getCurrentProcessName() == 'Test Process 15')
+            result = 'from 15';
         
         return result;
             
@@ -636,6 +641,125 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 14')== null, 'Expected is null as it ran  current is '+AsyncTriggerArc.globalConfig.triggerContext.getProcessStatus('Test Process 14'));
         
         
+      }
+    
+    
+     @IsTest static void triggerContextAddTriggerSkip(){
+        
+         List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
+         delete toDelete;
+         
+        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
+            new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+ 			new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process 13',
+                                           ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
+            new AsyncTriggerArqSettings__c(Name='Test Process 15',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           ApexTriggerName__c='OpportunityAfterTrigger',Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+         
+           
+        };
+       
+            
+            insert testSettings;
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+                                               true, //before
+                                              false, //after 
+                                              true, //insert
+                                              false, 
+                                              false,
+                                              false,
+                                              new List<Opportunity>(),
+                                              null,
+                                              null, 
+                                              null);
+         
+         
+         
+         
+         
+        string errorMessage = '';
+        
+    	test.startTest();
+        atarc.AddTriggerSkip('OpportunityBeforeTrigger');
+         
+        atarc.Start();//first run
+        
+         
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        
+         
+        system.assert(totalProcesses == 3 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 3 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+		        
+      }
+    
+    
+    
+    @IsTest static void triggerContextAddEventSkip(){
+        
+         List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
+         delete toDelete;
+         
+        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
+            new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+ 			new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process 13',
+                                           ApexTriggerName__c='OpportunityBeforeTrigger',Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
+            new AsyncTriggerArqSettings__c(Name='Test Process 15',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           ApexTriggerName__c='OpportunityAfterTrigger',Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+         
+           
+        };
+       
+            
+            insert testSettings;
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityBeforeTrigger',
+                                               true, //before
+                                              false, //after 
+                                              true, //insert
+                                              false, 
+                                              false,
+                                              false,
+                                              new List<Opportunity>(),
+                                              null,
+                                              null, 
+                                              null);
+         
+         
+         
+         
+         
+        string errorMessage = '';
+        
+    	test.startTest();
+        atarc.addEventSkip('BeforeInsert');
+         
+        atarc.Start();//first run
+         
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        
+         
+        system.assert(totalProcesses == 3 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 3 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+		
+         
       }
 
 }
