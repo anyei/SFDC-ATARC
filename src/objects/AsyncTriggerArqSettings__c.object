@@ -31,6 +31,14 @@
         <type>Checkbox</type>
     </fields>
     <fields>
+        <fullName>Debug__c</fullName>
+        <defaultValue>false</defaultValue>
+        <externalId>false</externalId>
+        <label>Debug</label>
+        <trackTrending>false</trackTrending>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
         <fullName>DependsOnError__c</fullName>
         <externalId>false</externalId>
         <label>DependsOnFailure</label>

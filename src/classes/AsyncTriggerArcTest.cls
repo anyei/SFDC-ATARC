@@ -27,6 +27,39 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         if(triggerContext.getCurrentProcessName() == 'Test Process 9')
             result = 'something from 9';
         
+        if(triggerContext.getCurrentProcessName() == 'Test Process 10'){
+            result = (string)triggerContext.getProcessData('Test Process 10');
+            if(result == null){
+                triggerContext.transactionLoop = 3;
+                result = '1';
+            }
+            else
+                result = string.valueof(integer.valueof(result) + 1);
+        }
+        
+        
+         if(triggerContext.getCurrentProcessName() == 'Test Process 11'){
+            result = (string)triggerContext.getProcessData('Test Process 11');
+            if(result == null){               
+                result = '1';
+            }
+            else
+                result = string.valueof(integer.valueof(result) + 1);
+        }
+        
+        
+        
+         if(triggerContext.getCurrentProcessName() == 'Test Process 12'){
+            result = (string)triggerContext.getProcessData('Test Process 12');
+            if(result == null){ 
+                triggerContext.transactionLoop = 2;
+                result = '1';
+            }
+            else
+                result = string.valueof(integer.valueof(result) + 1);
+        }
+            
+        
         return result;
             
     }
@@ -384,6 +417,170 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 8') == null, 'Expected is null Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 8')+'"');
         
         system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 9') == 'something from 9', 'Expected is "something from 9" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 9')+'"');
+        
+        
+      }
+    
+    
+    
+     @IsTest static void transactionLoopShouldRun3Times(){
+        
+         List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
+         delete toDelete;
+         
+        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
+            new AsyncTriggerArqSettings__c(Name='Test Process 10',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           ApexTriggerName__c='OpportunityAfterTrigger',Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+         
+           
+        };
+       
+            
+            insert testSettings;
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityAfterTrigger',
+                                               false, //before
+                                              true, //after 
+                                              true, //insert
+                                              false, 
+                                              false,
+                                              false,
+                                              new List<Opportunity>(),
+                                              null,
+                                              null, 
+                                              null);
+        string errorMessage = '';
+        
+    	test.startTest();
+        
+        atarc.Start();//first run
+        atarc.Start();//second run
+        atarc.Start();//third run
+        
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        system.assert(totalProcesses == 1 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 1 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+		
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 10') == '3', 'Expected is "3" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 10')+'"');
+ 
+         system.assert(AsyncTriggerArc.globalConfig.triggerContext.transactionLoop ==3, 'Expected is 3 current is '+AsyncTriggerArc.globalConfig.triggerContext.transactionLoop);
+        
+        
+      }
+    
+    
+    
+     @IsTest static void transactionLoopShouldRun1Times(){
+        
+         List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
+         delete toDelete;
+         
+        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
+            new AsyncTriggerArqSettings__c(Name='Test Process 11',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           ApexTriggerName__c='OpportunityAfterTrigger',Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+         
+           
+        };
+       
+            
+            insert testSettings;
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityAfterTrigger',
+                                               false, //before
+                                              true, //after 
+                                              true, //insert
+                                              false, 
+                                              false,
+                                              false,
+                                              new List<Opportunity>(),
+                                              null,
+                                              null, 
+                                              null);
+        string errorMessage = '';
+        
+    	test.startTest();
+        
+        atarc.Start();//first run
+        atarc.Start();//second run
+        atarc.Start();//third run
+        
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        system.assert(totalProcesses == 1 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 1 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+		
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 11') == '1', 'Expected is "1" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 11')+'"');
+ 
+           system.assert(AsyncTriggerArc.globalConfig.triggerContext.transactionLoop ==1, 'Expected is 1 as it ran  current is '+AsyncTriggerArc.globalConfig.triggerContext.transactionLoop);
+        
+        
+      }
+    
+    
+    
+    
+    
+     @IsTest static void transactionLoopShouldRun2Times(){
+        
+         List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
+         delete toDelete;
+         
+        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
+            new AsyncTriggerArqSettings__c(Name='Test Process 12',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           ApexTriggerName__c='OpportunityAfterTrigger',Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+         
+           
+        };
+       
+            
+            insert testSettings;
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc('Opportunity','OpportunityAfterTrigger',
+                                               false, //before
+                                              true, //after 
+                                              true, //insert
+                                              false, 
+                                              false,
+                                              false,
+                                              new List<Opportunity>(),
+                                              null,
+                                              null, 
+                                              null);
+        string errorMessage = '';
+        
+    	test.startTest();
+        
+        atarc.Start();//first run
+        atarc.Start();//second run
+        atarc.Start();//third run
+        
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        system.assert(totalProcesses == 1 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 1 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+		
+        system.assert(AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 12') == '2', 'Expected is "2" Current is "'+AsyncTriggerArc.globalConfig.triggerContext.getProcessData('Test Process 11')+'"');
+ 
+           system.assert(AsyncTriggerArc.globalConfig.triggerContext.transactionLoop ==2, 'Expected is 2 as it ran  current is '+AsyncTriggerArc.globalConfig.triggerContext.transactionLoop);
         
         
       }

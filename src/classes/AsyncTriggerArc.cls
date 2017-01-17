@@ -30,6 +30,7 @@ public class AsyncTriggerArc {
     
     static boolean orderProcessed;
     public static boolean globalSkip;
+    public static integer globalTransactionLoop;
     
     /****************/
     // INSTACE VARIABLES
@@ -50,6 +51,8 @@ public class AsyncTriggerArc {
         orderProcessed = false;
         
         globalSkip = false;
+        
+        globalTransactionLoop = 1;
         
     }
     
@@ -136,6 +139,7 @@ public class AsyncTriggerArc {
         globalConfig.triggerContext.oldMap = oldmap;
         globalConfig.triggerContext.newMap = newMap;
         globalConfig.skipEverything = globalSkip;
+        globalConfig.triggerContext.transactionLoop = globalTransactionLoop;
         
         //the chain of process to execute should be reset every time 
         //a trigger is executed
@@ -236,9 +240,10 @@ public class AsyncTriggerArc {
 */  
     public void Start(){
         
+        system.debug(getTriggerTrack()+ ' track ');
         /********************************/
         //propagation cancelation feature
-        if(getTriggerTrack() >=  1) return;
+        if( globalConfig.triggerContext.transactionLoop == null || getTriggerTrack() >=   globalConfig.triggerContext.transactionLoop || globalConfig.triggerContext.transactionLoop == 0 ) return;
         
         updateTriggerTrack();
         /*********************************/
@@ -337,12 +342,13 @@ public class AsyncTriggerArc {
     static boolean Run(AsyncTriggerArcConfig config, AsyncTriggerArqSettings__c setting, boolean fromAsync){         
         
         boolean isAsync = false;
+        config.triggerContext.debugMode = setting.debug__c;
         
         if(setting.isAsync__c){
             /**********************************/
             //async feature
             //
-            
+           
             system.debug(setting.ApexHelperClassName__c + ' from async ' + setting.Name);
             
             //async processes should break the upper loop
@@ -421,7 +427,7 @@ public class AsyncTriggerArc {
             
             
             //passing data in between processes feature
-            //the output represents the data output from a process
+            //the output represents the data output from a process            
             output = instance.execute(config.triggerContext);
             
             long totalTime = system.datetime.now().millisecond() - startTime;
@@ -524,6 +530,9 @@ public class AsyncTriggerArc {
         public boolean isDelete  {get;set;}
         public boolean isInsert  {get;set;} 
         public boolean isUndelete {get;set;}
+        public integer transactionLoop {get{return tloop;}
+                                        set{tloop = value; globalTransactionLoop = value;}}
+        protected integer tloop {get;set;}
         public List<SObject> newList{get;set;}
         public List<SObject> oldList {get;set;}
         public Map<id, SObject> oldMap  {get;set;}
@@ -532,6 +541,8 @@ public class AsyncTriggerArc {
         protected string processName;
         protected boolean processSucceeded = true;
         protected Map<string,object> CustomData {get;set;}
+        protected boolean debugMode = false;
+        
         public AsyncTriggerArcContext(){
             customData = new Map<string,object>();
         }
@@ -549,6 +560,11 @@ public class AsyncTriggerArc {
         
         public string getProcessStatus(string processName){
             return globalConfig.itemDetails.containsKey(processName) ? globalConfig.itemDetails.get(processName).status : null;
+        }
+        
+        public void debug(string msg){
+            if(debugMode)
+            	system.debug(msg);
         }
     }
     
