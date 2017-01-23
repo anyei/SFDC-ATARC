@@ -145,6 +145,6 @@ Please refer to the <a href="https://github.com/anyei/SFDC-ATARC/issues">Issues<
 
 ### Pending
 
-1. Test this with delete triggers.
+1. UPDATE THE WIKI AND README DOCUMENTATION AS MAJOR CHANGE WAS IMPLEMENTED!!
 
 
