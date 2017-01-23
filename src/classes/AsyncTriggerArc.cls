@@ -55,7 +55,7 @@ public class AsyncTriggerArc {
     
     @TestVisible static Map<string, System.LoggingLevel> logginLevelMap;
     
-    @TestVisible static integer mainQueuableUsedPool;
+   // @TestVisible static integer mainQueuableUsedPool;
     
     static boolean orderProcessed;
     static boolean runningAsyncContext;
@@ -78,6 +78,7 @@ public class AsyncTriggerArc {
         arqSettings = new Map<string,Map<string, Map<string, AsyncTriggerArqSettings__c[]>>>();  
         
         triggerExecTrack = new Map<string,Map<string,Map<string, integer>>>();
+        
         processesExecStatuses = new Map<string, AsyncTriggerArcProcessInfo>();
         
         logginLevelMap = new Map<string, System.LoggingLevel>{ 
@@ -91,7 +92,7 @@ public class AsyncTriggerArc {
                 
                 };
                     
-                    orderProcessed = false;
+        orderProcessed = false;
         
         globalSkip = false;
         
@@ -99,22 +100,25 @@ public class AsyncTriggerArc {
         
         globalStrategyMode = DEFAULT_OPERATION_STRATEGY_MODE;
         
-        mainQueuableUsedPool = 0;
+        //mainQueuableUsedPool = 0;
         
         runningAsyncContext = false;
         
     }
     
     static AsyncTriggerArcQueueableBase RequestQueuable(){
+         
         AsyncTriggerArcQueueableBase newInstance = null;
         
         if(Limits.getQueueableJobs() < GOVERNOR_LIMITS_QUEUEABLE ){
-            
-            mainQueuableUsedPool = (mainQueuableUsedPool >= GOVERNOR_LIMITS_QUEUEABLE) ? 1 : mainQueuableUsedPool + 1;
+            newInstance = new AsyncTriggerArcQueueable();
+           
+            /*mainQueuableUsedPool = (mainQueuableUsedPool >= GOVERNOR_LIMITS_QUEUEABLE) ? 1 : mainQueuableUsedPool + 1;
             string fullInstanceNameType = BASE_QUEUEABLE_BASE_NAME+mainQueuableUsedPool;
             
             newInstance =(AsyncTriggerArcQueueableBase) RequestInstance(fullInstanceNameType, true);
-            atarcDebug(fullInstanceNameType + ' in queue '+ Limits.getQueueableJobs());
+            atarcDebug(fullInstanceNameType + ' in queue '+ Limits.getQueueableJobs());*/
+            atarcDebug(' Requesting queueable instance, current queue count '+ Limits.getQueueableJobs());
         }
         return newInstance;
     }
@@ -331,7 +335,15 @@ public class AsyncTriggerArc {
     
     public void Start(){
         
-        atarcDebug('Start\nTransaction loop tracking:'+getTriggerTrack()+'\nSOBject:'+sObjectName+'\nTrigger:'+triggerName+'\nEvent:'+triggerEventTxt);
+        atarcDebug('Start\nTransaction loop tracking:'+getTriggerTrack()+
+                   '\nSOBject:'+sObjectName+
+                   '\nTrigger:'+triggerName+
+                   '\nEvent:'+triggerEventTxt+
+                   '\nRunningOutOfAnAsyncProcess:'+runningAsyncContext+
+                   '\nglobalSkip:'+globalSkip+
+                   '\nglobalTransactionLoop:'+globalTransactionLoop+
+                   '\nglobalDebugMode:'+globalDebugMode+
+                   '\nglobalStrategyMode:'+globalStrategyMode);
         
         
         /*********************************/
@@ -438,7 +450,11 @@ public class AsyncTriggerArc {
         config.triggerContext.debugMode = setting.debug__c;
         config.triggerContext.debugLevel = setting.debugLevel__c;
         
-        if(setting.isAsync__c && !runningAsyncContext){
+        if(setting.isAsync__c 
+           &&
+           //to fix specific problems when dml happens on a processes and the objects
+           //affected by the dml has async process as well
+           !runningAsyncContext){
             /**********************************/
             //async feature
             //
@@ -452,14 +468,19 @@ public class AsyncTriggerArc {
             asyncWorker.currentSetting = setting;
             asyncWorker.config = config;
             asyncWorker.pStatuses = processesExecStatuses;
-            asyncWorker.qpool = mainQueuableUsedPool;
+            //asyncWorker.qpool = mainQueuableUsedPool;
             
             system.enqueueJob(asyncWorker);
             
             atarcDebug('Processes executed async');
             
             isAsync = true;
-        }else if(!setting.isAsync__c && fromAsync && !Test.isRunningTest()){
+        }else if(!setting.isAsync__c                 
+                 && 
+                 //if we want to respect the order of the processes that are not async
+                 //but they are called after an async process
+                 fromAsync 
+                 && !Test.isRunningTest()){
             
             atarcDebug('Synchronous from Async running..');
             
@@ -471,7 +492,7 @@ public class AsyncTriggerArc {
             asyncWorker.currentSetting = setting;
             asyncWorker.config = config;
             asyncWorker.pStatuses = processesExecStatuses;
-            asyncWorker.qpool = mainQueuableUsedPool;
+            //asyncWorker.qpool = mainQueuableUsedPool;
             //(config, setting, processesExecStatuses);
             system.enqueueJob(asyncWorker);
             
@@ -692,106 +713,7 @@ public class AsyncTriggerArc {
     }
     
     
-    /*
-* Queueable class 
-* Runs when async is needed
-*//*
-class AsyncTriggerArcQueueable implements Queueable{
-public AsyncTriggerArcConfig Config {get;set;}
-public AsyncTriggerArqSettings__c currentSetting {get;set;}
-public Map<string, AsyncTriggerArcProcessInfo> pStatuses{get;set;}
-public AsyncTriggerArcQueueable(AsyncTriggerArcConfig conf, AsyncTriggerArqSettings__c setting, Map<string, AsyncTriggerArcProcessInfo> pStatuses){
-Config = conf;
-currentSetting = setting;
-this.pStatuses = pstatuses;
-}
-public void execute(QueueableContext context){
-atarcDebug('EXECUTING ASYNC '+currentSetting.ApexHelperClassName__c);
-
-processesExecStatuses = pstatuses;
-//to fix specific issue
-//globalConfig is empty when queueable is executed
-//
-//Also in the unit test when the starttest and stoptest happen
-//every async jobs or processes are treated as synchronous
-//but a new transaction is created anyway
-//globalConfig will be empty by that time 
-//assigning the config to the globalConfig will allow unit test context
-//to have the config data
-//globalConfig = config;
-
-//run the class of the current setting
-object output =  RunClass(config, currentSetting);
-
-//store the output of the current invocation
-config.triggerContext.customData.put(currentSetting.Name,output);
-
-
-//chain operations
-//call the next operation according to the order.            
-if(DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
-Eval(config, true);
-
-}
-
-}*/
-    
-    
-    
-    public class AsyncTriggerArcQueueable1 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable2 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable3 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable4 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable5 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable6 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable7 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable8 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable9 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable10 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable11 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable12 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable13 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable14 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable15 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable16 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable17 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable18 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable19 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable20 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable21 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable22 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable23 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable24 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable25 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable26 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable27 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable28 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable29 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable30 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable31 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable32 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable33 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable34 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable35 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable36 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable37 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable38 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable39 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable40 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable41 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable42 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable43 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable44 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable45 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable46 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable47 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable48 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable49 extends AsyncTriggerArcQueueableBase{}
-    public class AsyncTriggerArcQueueable50 extends AsyncTriggerArcQueueableBase{}
-    
-    
-    
-    
+    public class AsyncTriggerArcQueueable extends AsyncTriggerArcQueueableBase{}
     
     /*
 * Queueable to run when synchronous execution follow an async execution
@@ -822,9 +744,18 @@ Eval(config, true);
         
         public virtual void execute(QueueableContext context){
             atarcDebug('EXECUTING ASYNC '+currentSetting.ApexHelperClassName__c +'\n'+additionalMsg);
+            
+            //to overcome sfdc limit 
+            //(only one queueable can be called from within a queueable so any dlm inside the implementation 
+            //of the this context will be executed within this transaction unfortunately)
             runningAsyncContext = true;
+            
+            //tracking of the executed processes so far
             processesExecStatuses = pstatuses;
-            mainQueuableUsedPool = qpool;
+            
+            //mainQueuableUsedPool = qpool;
+            //
+            
             //to fix specific issue
             //globalConfig is empty when queueable is executed
             //
@@ -842,7 +773,10 @@ Eval(config, true);
             //store the output of the current invocation
             config.triggerContext.customData.put(currentSetting.Name,output);
             
+            //unflaggin this allows the eval process to run/chain another queueable
             runningAsyncContext = false;
+            
+            
             //chain operations
             //call the next operation according to the order.            
             if(DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
