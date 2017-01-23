@@ -31,6 +31,16 @@
         <type>Checkbox</type>
     </fields>
     <fields>
+        <fullName>Category__c</fullName>
+        <externalId>false</externalId>
+        <label>Category</label>
+        <length>255</length>
+        <required>false</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
         <fullName>Debug__c</fullName>
         <defaultValue>false</defaultValue>
         <externalId>false</externalId>
@@ -101,6 +111,17 @@
         <label>SObject</label>
         <length>255</length>
         <required>true</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>debugLevel__c</fullName>
+        <defaultValue>&quot;DEBUG&quot;</defaultValue>
+        <externalId>false</externalId>
+        <label>debugLevel</label>
+        <length>255</length>
+        <required>false</required>
         <trackTrending>false</trackTrending>
         <type>Text</type>
         <unique>false</unique>

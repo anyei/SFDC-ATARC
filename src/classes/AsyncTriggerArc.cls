@@ -7,7 +7,7 @@
 * 			order of execution, a flag to make it active or not (if not active it will not run), a flag to force it to run
 * 			as queueable, a field to control dependencies (process A is dependent on process B to run, if process B does not run or 
 * 			has an exception in the code process A will not run) and in addition to all that this also has the capability to pass output from one process
-* 			to the next one within the same transaction.  
+* 			to the next one within the same transaction.  processToSkip
 *  
 * Test Classes: AsyncTriggerArcTest
 */ 
@@ -21,16 +21,49 @@ public class AsyncTriggerArc {
     public static final string PROCESS_EXECUTED = 'Executed';
     public static final string PROCESS_FAILED = 'Failed';
     
+    //possible values listed here NONE, ERROR, WARN, INFO, DEBUG,
+    //FINE, FINER, FINEST
+    public static final string DEFAULT_LOGGIN_LEVEL = 'NONE';
+    public static final string CATEGORY_SKIP = 'category';
+    public static final string OBJECT_SKIP = 'object';
+    public static final string TRIGGER_SKIP = 'trigger';
+    public static final string EVENT_SKIP = 'event';
+    public static final string PROCESS_SKIP = 'process';
+    public static final string FRAMEWORK_NAME = 'ATARC';
+    public static final string BASE_QUEUEABLE_BASE_NAME = 'AsyncTriggerArc.AsyncTriggerArcQueueable';
+    public static final integer GOVERNOR_LIMITS_QUEUEABLE = 50;
+    
+    //possible values QUEUE, FULLASYNC
+    public static final string DEFAULT_OPERATION_STRATEGY_MODE = 'QUEUE_SYNCHRONOUS_PRIORITY';
+    public static final string OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER = 'QUEUE_RESPECT_ORDER';
+    public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC = 'FULLASYNC_RESPECT_ORDER';
+    public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY = 'FULLASYNC_SYNCHRONOUS_PRIORITY';
+    
     //global maps, lists, config
     @TestVisible static Map<string,Map<string, map<string, AsyncTriggerArqSettings__c[]>>> arqSettings;    
     
-    @TestVisible static AsyncTriggerArcConfig globalConfig;   
+    //must be an instance variable
+    //this is the state of engine instance
+    
+    @TestVisible AsyncTriggerArcConfig globalConfig;
+    
+    @TestVisible static AsyncTriggerArcConfig currentGlobalConfig;
+    
+    @TestVisible static Map<string, AsyncTriggerArcProcessInfo>  processesExecStatuses;
     
     @TestVisible static Map<string,Map<string,Map<string, integer>>> triggerExecTrack;
     
+    @TestVisible static Map<string, System.LoggingLevel> logginLevelMap;
+    
+    @TestVisible static integer mainQueuableUsedPool;
+    
     static boolean orderProcessed;
+    static boolean runningAsyncContext;
     public static boolean globalSkip;
     public static integer globalTransactionLoop;
+    public static boolean globalDebugMode = true;
+    public static string globalStrategyMode;
+    
     
     /****************/
     // INSTACE VARIABLES
@@ -42,85 +75,173 @@ public class AsyncTriggerArc {
     //load initial config
     static{
         
-        arqSettings = new Map<string,Map<string, Map<string, AsyncTriggerArqSettings__c[]>>>();        
-        
-        globalConfig = new AsyncTriggerArcConfig();
+        arqSettings = new Map<string,Map<string, Map<string, AsyncTriggerArqSettings__c[]>>>();  
         
         triggerExecTrack = new Map<string,Map<string,Map<string, integer>>>();
+        processesExecStatuses = new Map<string, AsyncTriggerArcProcessInfo>();
         
-        orderProcessed = false;
+        logginLevelMap = new Map<string, System.LoggingLevel>{ 
+            'NONE'=> LoggingLevel.NONE,
+                'ERROR' => LoggingLevel.ERROR,
+                'WARN' => LoggingLevel.WARN,
+                'INFO' => LoggingLevel.INFO,
+                'DEBUG' => LoggingLevel.FINE,
+                'FINER' => LoggingLevel.FINER,
+                'FINEST' => LoggingLevel.FINEST
+                
+                };
+                    
+                    orderProcessed = false;
         
         globalSkip = false;
         
         globalTransactionLoop = 1;
         
+        globalStrategyMode = DEFAULT_OPERATION_STRATEGY_MODE;
+        
+        mainQueuableUsedPool = 0;
+        
+        runningAsyncContext = false;
+        
     }
     
+    static AsyncTriggerArcQueueableBase RequestQueuable(){
+        AsyncTriggerArcQueueableBase newInstance = null;
+        
+        if(Limits.getQueueableJobs() < GOVERNOR_LIMITS_QUEUEABLE ){
+            
+            mainQueuableUsedPool = (mainQueuableUsedPool >= GOVERNOR_LIMITS_QUEUEABLE) ? 1 : mainQueuableUsedPool + 1;
+            string fullInstanceNameType = BASE_QUEUEABLE_BASE_NAME+mainQueuableUsedPool;
+            
+            newInstance =(AsyncTriggerArcQueueableBase) RequestInstance(fullInstanceNameType, true);
+            atarcDebug(fullInstanceNameType + ' in queue '+ Limits.getQueueableJobs());
+        }
+        return newInstance;
+    }
+    
+    @TestVisible static boolean canSkip(boolean gskip, AsyncTriggerArqSettings__c setting, AsyncTriggerArcConfig config){
+        boolean skip = false;
+        
+        if(gskip == true) return gskip;
+        
+        for(string skipType : config.skips.keyset()){
+            if(skipType == CATEGORY_SKIP) if(skip = config.skips.get(skipType).contains(setting.Category__c)) break;
+            if(skipType == OBJECT_SKIP) if(skip = config.skips.get(skipType).contains(setting.SObject__c)) break;
+            if(skipType == TRIGGER_SKIP) if(skip = config.skips.get(skipType).contains(setting.ApexTriggerName__c)) break;
+            if(skipType == EVENT_SKIP) if(skip = config.skips.get(skipType).contains(setting.Event__c)) break;
+            if(skipType == PROCESS_SKIP) if(skip = config.skips.get(skipType).contains(setting.Name)) break;
+            
+        }
+        return skip;
+    }
     
     /*
 * @method
 * Process the order of the items retrieve from the config settings
 */ 
-    @TestVisible static void processOrder(boolean firstTime){
-        Map<string,Map<string,Map<string, List<integer>>>> orderLogic = new Map<string,Map<string,Map<string, List<integer>>>>();
+    @TestVisible void processOrder(boolean firstTime){
         
-        for(AsyncTriggerArqSettings__c setting : AsyncTriggerArqSettings__c.GetAll().values()){
+        if(orderProcessed != true){
             
-            if(setting.IsActive__c && globalSkip == false && !globalConfig.processToSkip.contains(setting.name) && !globalConfig.objectToSkip.contains(setting.SObject__c)){
-                
-                //order logic.. as we dont have soql we must order by our self
-                if(!orderLogic.containsKey(setting.SObject__c))
-                    orderLogic.put(setting.SObject__c, new Map<string,Map<string, List<integer>>>());
-                
-                if(!orderLogic.get(setting.SObject__c).containsKey(setting.ApexTriggerName__c))
-                    orderLogic.get(setting.SObject__c).put(setting.ApexTriggerName__c, new Map<string, List<integer>>());
-                
-                if(!orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).containsKey(setting.Event__c))
-                    orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).put(setting.Event__c, new List<integer>());
-                
-                orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
-                
+            Map<string,Map<string,Map<string, List<integer>>>> orderLogic = new Map<string,Map<string,Map<string, List<integer>>>>();
+            List<AsyncTriggerArqSettings__c> settings =  AsyncTriggerArqSettings__c.GetAll().values();
+            
+            /*
+* Synchronous settings should be executed first, no matter if in the order of execution they are listed after an async one
+* This is to avoid specific behavior ( If async process A executes and then the next in line to be executed are three sync process
+* if we want to separate those transactions then we need to make the sync processes to execute from within an async operation )
+* 
+*/ 
+            List<AsyncTriggerArqSettings__c> synchronousSettings = new List<AsyncTriggerArqSettings__c>(); 
+            List<AsyncTriggerArqSettings__c> asynchronousSettings = new List<AsyncTriggerArqSettings__c>();
+            
+            for(AsyncTriggerArqSettings__c setting :  settings){
+                if(setting.isAsync__c)
+                    asynchronousSettings.add(setting);
+                else
+                    synchronousSettings.add(setting);
             }
             
-        }
-        
-        
-        for(AsyncTriggerArqSettings__c setting : AsyncTriggerArqSettings__c.GetAll().values()){
-            if(setting.IsActive__c && globalSkip == false && !globalConfig.processToSkip.contains(setting.name) && !globalConfig.objectToSkip.contains(setting.SObject__c)){
+            if(DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(globalConfig.strategyMode)  || OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY.equalsIgnoreCase(globalConfig.strategyMode) ){
+                settings.clear();
+                settings.addAll(synchronousSettings);
+                settings.addAll(asynchronousSettings);
+            }
+            
+            for(AsyncTriggerArqSettings__c setting : settings){
                 
-                if(firstTime)
-                    globalConfig.ItemDetails.put(setting.name, new AsyncTriggerArcProcessInfo() );
-                
-                orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).sort();
-                List<integer> orderOfProcess = orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c);
-                
-                if(!arqSettings.containsKey(setting.SObject__c))
-                    arqSettings.put(setting.SObject__c, new Map<string,Map<string, AsyncTriggerArqSettings__c[]>>() );
-                
-                if(!arqSettings.get(setting.SObject__c).containsKey(setting.ApexTriggerName__c))
-                    arqSettings.get(setting.SObject__c).put(setting.ApexTriggerName__c, new Map<string, AsyncTriggerArqSettings__c[] >());
-                
-                if(!arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).containsKey(setting.Event__c))
-                    arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).put(setting.Event__c, new AsyncTriggerArqSettings__c[orderOfProcess.size()] );
-                
-                for(integer i =0;i< orderOfProcess.size(); i++){
+                if(setting.IsActive__c && !canSkip(globalSkip,setting, globalConfig)){
                     
-                    if(orderOfProcess[i] == integer.valueof(setting.order__c))
-                    {                        
-                        arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).set(i, setting);
-                        
-                    }
+                    //order logic.. as we dont have soql we must order by our self
+                    if(!orderLogic.containsKey(setting.SObject__c))
+                        orderLogic.put(setting.SObject__c, new Map<string,Map<string, List<integer>>>());
+                    
+                    if(!orderLogic.get(setting.SObject__c).containsKey(setting.ApexTriggerName__c))
+                        orderLogic.get(setting.SObject__c).put(setting.ApexTriggerName__c, new Map<string, List<integer>>());
+                    
+                    if(!orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).containsKey(setting.Event__c))
+                        orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).put(setting.Event__c, new List<integer>());
+                    
+                    orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
+                    
+                    
                 }
                 
             }
             
+            for(AsyncTriggerArqSettings__c setting : settings){
+                if(setting.IsActive__c && !canSkip(globalSkip,setting, globalConfig)){
+                    
+                    if(firstTime)
+                        processesExecStatuses.put(setting.name, new AsyncTriggerArcProcessInfo() );
+                    
+                    orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).sort();
+                    List<integer> orderOfProcess = orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c);
+                    
+                    if(!arqSettings.containsKey(setting.SObject__c))
+                        arqSettings.put(setting.SObject__c, new Map<string,Map<string, AsyncTriggerArqSettings__c[]>>() );
+                    
+                    if(!arqSettings.get(setting.SObject__c).containsKey(setting.ApexTriggerName__c))
+                        arqSettings.get(setting.SObject__c).put(setting.ApexTriggerName__c, new Map<string, AsyncTriggerArqSettings__c[] >());
+                    
+                    if(!arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).containsKey(setting.Event__c))
+                        arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).put(setting.Event__c, new AsyncTriggerArqSettings__c[orderOfProcess.size()] );
+                    
+                    for(integer i =0;i< orderOfProcess.size(); i++){
+                        
+                        if(orderOfProcess[i] == integer.valueof(setting.order__c))
+                        {                        
+                            arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).set(i, setting);
+                            
+                        }
+                    }
+                    
+                }
+                
+                
+                
+            }
             
+            atarcDebug('Config loaded\n'+settings.size());
             
         }
         
+        
+        
+        
         orderProcessed = true;
     }    
+    static void atarcDebug(object msg){
+        debug(FRAMEWORK_NAME, globalDebugMode, 'INFO',(msg != null) ? string.valueof(msg) : '' ) ;
+    }
+    public static void globalDebug(object msg){
+        if(currentGlobalConfig != null && currentGlobalConfig.triggerContext != null) debug(currentGlobalConfig.triggerContext.processName, currentGlobalConfig.triggerContext.debugMode , currentGlobalConfig.triggerContext.debugLevel, msg != null ? string.valueof(msg) : '' );
+        
+    }
     
+    static void debug(string prefix, boolean debugMode, string lvl, string msg){
+        if(debugMode == true) system.debug((logginLevelMap.containsKey(lvl) ?  logginLevelMap.get(lvl) : logginLevelMap.get(DEFAULT_LOGGIN_LEVEL)), prefix + ': '+ msg);
+    }
     
     /*
 * @constructor 1
@@ -129,7 +250,9 @@ public class AsyncTriggerArc {
     public AsyncTriggerArc(string sObjectName, string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, boolean isUndelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
         
         if(String.isEmpty(sObjectName) || String.isEmpty(triggerName))
-            throw new AsyncTriggerArcException('sObject Name or trigger Name is must be provided');
+            throw new AsyncTriggerArcException('sObject Name and trigger Name is must be provided');
+        
+        globalConfig = new AsyncTriggerArcConfig();
         
         this.sObjectName = sObjectName;
         this.triggerName = triggerName;
@@ -138,8 +261,10 @@ public class AsyncTriggerArc {
         globalConfig.triggerContext.newList = newList;
         globalConfig.triggerContext.oldMap = oldmap;
         globalConfig.triggerContext.newMap = newMap;
-        globalConfig.skipEverything = globalSkip;
+        globalConfig.strategyMode = globalStrategyMode;
         globalConfig.triggerContext.transactionLoop = globalTransactionLoop;
+        globalConfig.skipEverything = globalSkip;
+        
         
         //the chain of process to execute should be reset every time 
         //a trigger is executed
@@ -173,33 +298,19 @@ public class AsyncTriggerArc {
     }
     
     
-    
-    public Map<string,AsyncTriggerArcProcessInfo> getProcessesExecutionInformation(){
-        Map<string,AsyncTriggerArcProcessInfo> result= new Map<string,AsyncTriggerArcProcessInfo>();
-        result.putall(globalConfig.ItemDetails);
-        return result;
-    }
     /*
 * @method
-* ADDSKIP
+* GetProcessesExecutionInformation
 */ 
-    public AsyncTriggerArc AddProcessSkip(string processName){
-        globalConfig.processToSkip.add(processName);        
-        return this;
+    public Map<string,AsyncTriggerArcProcessInfo> getProcessesExecutionInformation(){
+        Map<string,AsyncTriggerArcProcessInfo> result= new Map<string,AsyncTriggerArcProcessInfo>();
+        result.putall(processesExecStatuses);
+        return result;
     }
     
-    public AsyncTriggerArc AddSObjectSkip(string SObjectName){
-        globalConfig.objectToSkip.add(SObjectName);
-        return this;
-    }
     
-    public AsyncTriggerArc AddTriggerSkip(string apexTriggerName){
-        globalConfig.triggerSkip.add(apexTriggerName);
-        return this;
-    }
-    
-    public AsyncTriggerArc AddEventSkip(string eventName){
-        globalCOnfig.eventSkip.add(eventName);
+    public AsyncTriggerArc bypass(string skipType, string skipValue){
+        if(globalCOnfig.skips.containsKey(skipType)) globalCOnfig.skips.get(skipType).add(skipValue);
         return this;
     }
     
@@ -207,30 +318,8 @@ public class AsyncTriggerArc {
 * @method
 * REMOVESKIP
 */ 
-    public AsyncTriggerArc removeProcessSkip(string processName){
-        if(globalConfig.processToSkip.contains(processName))
-            globalConfig.processToSkip.remove(processName);        
-        return this;
-    }
-    
-    public AsyncTriggerArc removeObjectSkip(string SObjectName){
-        if(globalConfig.objectToSkip.contains(SObjectName))
-            globalConfig.objectToSkip.remove(SObjectName);
-        
-        return this;
-    }
-    
-    public AsyncTriggerArc removeTriggerSkip(string apexTriggerName){
-        if(globalConfig.triggerSkip.contains(apexTriggerName))
-            globalConfig.triggerSkip.remove(apexTriggerName);
-        
-        return this;
-    }
-    
-    public AsyncTriggerArc removeEventSkip(string eventName){
-        if(globalConfig.eventSkip.contains(eventName))
-            globalConfig.eventSkip.remove(eventName);
-        
+    public AsyncTriggerArc clearBypass(string skipType, string skipValue){
+        if(globalCOnfig.skips.containsKey(skipType)) globalCOnfig.skips.remove(skipValue);
         return this;
     }
     
@@ -238,15 +327,11 @@ public class AsyncTriggerArc {
 * @method
 * START
 */  
+    
+    
     public void Start(){
         
-        system.debug(getTriggerTrack()+ ' track ');
-        /********************************/
-        //propagation cancelation feature
-        if( globalConfig.triggerContext.transactionLoop == null || getTriggerTrack() >=   globalConfig.triggerContext.transactionLoop || globalConfig.triggerContext.transactionLoop == 0 ) return;
-        
-        updateTriggerTrack();
-        /*********************************/
+        atarcDebug('Start\nTransaction loop tracking:'+getTriggerTrack()+'\nSOBject:'+sObjectName+'\nTrigger:'+triggerName+'\nEvent:'+triggerEventTxt);
         
         
         /*********************************/
@@ -259,7 +344,20 @@ public class AsyncTriggerArc {
            && arqSettings.get(sObjectName).containsKey(triggerName)
            && arqSettings.get(SObjectName).get(triggerName).containsKey(triggerEventTxt)
           ){
-              for(AsyncTriggerArqSettings__c setting : arqSettings.get(sObjectName).get(triggerName).get(triggerEventTxt)){                    
+              
+              /********************************/
+              //propagation cancelation feature
+              
+              if( globalConfig.triggerContext.transactionLoop == null || getTriggerTrack() >=   globalConfig.triggerContext.transactionLoop || globalConfig.triggerContext.transactionLoop == 0 ){ atarcDebug('TRANSACTION LOOP REACHED'); return; }
+              
+              updateTriggerTrack();
+              /*********************************/
+              
+              List<AsyncTriggerArqSettings__c> settings = arqSettings.get(sObjectName).get(triggerName).get(triggerEventTxt);
+              
+              atarcDebug('Trigger match found:'+triggerEventTxt+'\nTotal processes:'+settings.size());
+              
+              for(AsyncTriggerArqSettings__c setting : settings){                    
                   globalConfig.Chain.add(setting);                    
               } 
               
@@ -273,61 +371,56 @@ public class AsyncTriggerArc {
     //Eval
     /*****************************/
     static void Eval(AsyncTriggerArcConfig config, boolean fromAsync){
+        atarcDebug('Preparing to start invoke processes');
+        
         //processes chaning logic
         while(config.chain.size() > 0){
             
+            atarcDebug('Total processes pending to be executed ' + config.chain.size());
             
             //"doing pop", returning and removing the next process to evaluate and execute
             //this is key to get rid of the processed processes from the queue
             AsyncTriggerArqSettings__c setting = config.chain.remove(0);
             
+            atarcDebug('Evaluating process\nName:'+setting.Name+'\nApexClass:'+setting.ApexHelperClassName__c+'\nOrder:'+setting.Order__c + '\nIsAsync:'+setting.isAsync__c);
+            
             /**********************************/
             //simple skip functionality
-            if(config.skipEverything == true 
-               ||config.processToSkip.contains(setting.name) 
-               || config.eventSkip.contains(setting.Event__c)
-               || config.triggerSkip.contains(setting.ApexTriggerName__c)               
-               || config.objectToSkip.contains(setting.SObject__c)) break;
+            if(canSkip(config.skipEverything, setting, config)){ atarcDebug('BYPASS FOUND'); break; }
             /***********************************/
             
             boolean breakTransaction = false;
-            system.debug(setting.ApexHelperClassName__c);
             
-            if(setting != null){                          
-                
-                if(String.isNotEmpty(setting.DependsOn__c) 
-                   && config.ItemDetails.containsKeY(setting.DependsOn__c) 
-                   && config.ItemDetails.get(setting.DependsOn__c).status == PROCESS_EXECUTED){
-                       
-                       //processes with dependencies should execute only if dependency process executed successfully
-                       breakTransaction = Run(config, setting, fromAsync);
-                       
-                   }else if(String.isNotEmpty(setting.DependsOnError__c) 
-                            && config.ItemDetails.containsKeY(setting.DependsOnError__c) 
-                            && config.ItemDetails.get(setting.DependsOnError__c).status == PROCESS_FAILED){
-                                
-                                //processes with dependencies should execute only if dependency process executed successfully
-                                breakTransaction = Run(config, setting, fromAsync);
-                                
-                            }else if(String.isBlank(setting.DependsOn__c) && String.isBlank(setting.DependsOnError__c))
-                            {   
-                                //processes with no dependencies should run
-                                breakTransaction = Run(config,setting, fromAsync);
-                                
-                            }else if(config.Chain.size() > 0){
-                                
-                                //processes with dependencies but dependency didn't executed successfully should be skipped
-                                //the next process in the list should be executed
-                                continue;
-                            }
-                
-            }else //no more process to execute, setting shoudl be null hence loop should break{
-            {
-                break;
-            }
+            
+            if(String.isNotEmpty(setting.DependsOn__c) 
+               && processesExecStatuses.containsKeY(setting.DependsOn__c) 
+               && processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED){
+                   
+                   //processes with dependencies should execute only if dependency process executed successfully
+                   breakTransaction = Run(config, setting, fromAsync);
+                   
+               }else if(String.isNotEmpty(setting.DependsOnError__c) 
+                        && processesExecStatuses.containsKeY(setting.DependsOnError__c) 
+                        && processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED){
+                            
+                            //processes with dependencies should execute only if dependency process executed successfully
+                            breakTransaction = Run(config, setting, fromAsync);
+                            
+                        }else if(String.isBlank(setting.DependsOn__c) && String.isBlank(setting.DependsOnError__c))
+                        {   
+                            //processes with no dependencies should run
+                            breakTransaction = Run(config,setting, fromAsync);
+                            
+                        }else if(config.Chain.size() > 0){
+                            
+                            //processes with dependencies but dependency didn't executed successfully should be skipped
+                            //the next process in the list should be executed
+                            continue;
+                        }
+            
             
             //async transactions invokations should break this loop
-            if(breakTransaction){                
+            if(breakTransaction && DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) ){                
                 break;
             }
         }
@@ -343,33 +436,51 @@ public class AsyncTriggerArc {
         
         boolean isAsync = false;
         config.triggerContext.debugMode = setting.debug__c;
+        config.triggerContext.debugLevel = setting.debugLevel__c;
         
-        if(setting.isAsync__c){
+        if(setting.isAsync__c && !runningAsyncContext){
             /**********************************/
             //async feature
             //
-           
-            system.debug(setting.ApexHelperClassName__c + ' from async ' + setting.Name);
+            
+            atarcDebug('Async running...');
             
             //async processes should break the upper loop
             //so that only one active process thread is working            
-            AsyncTriggerArcQueueable asyncWorker = new AsyncTriggerArcQueueable(config, setting);
+            //AsyncTriggerArcQueueable asyncWorker = new AsyncTriggerArcQueueable(config, setting, processesExecStatuses);
+            AsyncTriggerArcQueueableBase asyncWorker = RequestQueuable();
+            asyncWorker.currentSetting = setting;
+            asyncWorker.config = config;
+            asyncWorker.pStatuses = processesExecStatuses;
+            asyncWorker.qpool = mainQueuableUsedPool;
+            
             system.enqueueJob(asyncWorker);
             
-            isAsync = true;
-        }else if(fromAsync && !Test.isRunningTest()){
+            atarcDebug('Processes executed async');
             
-            system.debug('helper class synchronous from async '+setting.Name);
+            isAsync = true;
+        }else if(!setting.isAsync__c && fromAsync && !Test.isRunningTest()){
+            
+            atarcDebug('Synchronous from Async running..');
             
             /***************************/
             //synchronous processes executed from within async transaction should have their own thread
             //queuable to start a fresh transaction when a synchronous transactions needs to run after
             //an async transaction
-            AsyncTriggerArcSynchronousProcess asyncWorker = new AsyncTriggerArcSynchronousProcess(config, setting);
+            AsyncTriggerArcSynchronousProcess asyncWorker = new AsyncTriggerArcSynchronousProcess();
+            asyncWorker.currentSetting = setting;
+            asyncWorker.config = config;
+            asyncWorker.pStatuses = processesExecStatuses;
+            asyncWorker.qpool = mainQueuableUsedPool;
+            //(config, setting, processesExecStatuses);
             system.enqueueJob(asyncWorker);
+            
+            atarcDebug('Processes executed async so that sync processes are executed');
             isAsync = true;
             
         }else{
+            
+            atarcDebug('Running...');
             
             //after class is executed then get the output if any
             //after preparing data for the triggerContext upper loop should run the next process in line.
@@ -382,41 +493,37 @@ public class AsyncTriggerArc {
         return isAsync;
     }
     
-    
+    static Object RequestInstance(string apexClassName, boolean throwError){
+        object newInstance = null;
+        
+        try{
+            Type t= Type.forName(apexClassName);           
+            newInstance = t.newInstance();
+        }catch(Exception err){
+            
+            /**********************************/
+            //break transaction if error feature
+            if(throwError)
+                throw err;
+        }
+        return newInstance;
+        
+    }
     /********************************/
     //@method
     //RUNCLASS
     /********************************/
     static Object RunClass(AsyncTriggerArcConfig config, AsyncTriggerArqSettings__c setting){
-        
-        Type t = null;
         IAsyncTriggerArc instance = null;
         Object output = null;
         
         config.triggerContext.processName = setting.name;
         
-        try{
-            t = Type.forName(setting.ApexHelperClassName__c);
-        }catch(Exception err){
-            
-            /**********************************/
-            //break transaction if error feature
-            if(setting.BreakIfError__c)
-                throw err;
-        }
+        atarcDebug('type found');
         
-        if(t != null){
-            try{
-                instance =(IAsyncTriggerArc)t.newInstance();
-            }catch(Exception err){
-                
-                /**********************************/
-                //break transaction if error feature
-                if(setting.BreakIfError__c)
-                    throw err;
-                
-            }
-        }        
+        instance =(IAsyncTriggerArc)RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
+        
+        
         
         long startTime = system.datetime.now().millisecond();
         
@@ -425,16 +532,20 @@ public class AsyncTriggerArc {
             if(instance == null)
                 throw new AsyncTriggerArcException('Not able to instantiate Apex Class '+setting.ApexHelperClassName__c);
             
+            atarcDebug('instance found');
             
             //passing data in between processes feature
             //the output represents the data output from a process            
-            output = instance.execute(config.triggerContext);            
-           
+            output = instance.execute(config.triggerContext);    
+            
+            atarcDebug('Processes executed '+setting.ApexHelperClassName__c+'\nOutput?:');
+            
             long totalTime = system.datetime.now().millisecond() - startTime;
             
             UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED )  );
             
             UpdateProcessTime(config, setting, totalTime);
+            
         }catch(Exception err){  
             
             long totalTime = system.datetime.now().millisecond() - startTime;
@@ -442,11 +553,11 @@ public class AsyncTriggerArc {
             UpdateStatus(config, setting, PROCESS_FAILED);
             UpdateProcessTime(config, setting, totalTime);
             
+            atarcDebug('EXCEPTION!!:\n'+err.getMessage());
             
             /**********************************/
             //break transaction if error feature
-            if(setting.BreakIfError__c)
-                throw err;
+            if(setting.BreakIfError__c) { atarcDebug('breaking transaction'); throw err; }
         }
         
         return output;
@@ -478,11 +589,11 @@ public class AsyncTriggerArc {
 * Updates the status of the configuration
 */
     static void UpdateStatus(AsyncTriggerArcConfig config, AsyncTriggerArqSettings__c setting, string status){        
-        config.ItemDetails.get(setting.Name).status = status;
+        processesExecStatuses.get(setting.Name).status = status;
     }
     
     static void UpdateProcessTime(AsyncTriggerArcConfig config, AsyncTriggerArqSettings__c setting, long totalTime){         
-        config.ItemDetails.get(setting.Name).processTime = totalTime;
+        processesExecStatuses.get(setting.Name).processTime = totalTime;
     }
     
     /************************************************/
@@ -496,23 +607,35 @@ public class AsyncTriggerArc {
     
     class AsyncTriggerArcConfig{
         
-        public List<AsyncTriggerArqSettings__c> Chain {get;set;}
-        public Map<string,AsyncTriggerArcProcessInfo> ItemDetails {get;set;}
+        public List<AsyncTriggerArqSettings__c> Chain {get;set;}        
         public AsyncTriggerArcContext triggerContext{get;set;}
         public set<string> processToSkip {get;set;}        
         public set<string> objectToSkip {get;set;} 
         public set<string> triggerSkip {get;set;}
         public set<string> eventSkip {get;set;}
+        public set<string> categorySkip {get;set; }
+        
+        public Map<string, set<string> > skips {get;set;}
+        
         public boolean skipEverything {get;set;}
+        public string strategyMode {get;set;}
         
         public AsyncTriggerArcConfig(){
-            ItemDetails = new Map<string,AsyncTriggerArcProcessInfo>();        
+            
             triggerContext = new AsyncTriggerArcContext();             
             processToSkip = new set<string>();
             objectToSkip = new set<string>();
             triggerSkip = new set<string>();
             eventSkip = new set<string>();
-            skipEverything = false;
+            categorySkip = new set<string>();
+            skips = new Map<string, set<string>>{
+                CATEGORY_SKIP => new set<string>(),
+                    OBJECT_SKIP => new set<string>(),
+                    TRIGGER_SKIP => new set<string>(),
+                    EVENT_SKIP => new set<string>(),
+                    PROCESS_SKIP => new set<string>()
+                    };
+                        skipEverything = false;
             
         }
         
@@ -542,6 +665,7 @@ public class AsyncTriggerArc {
         protected boolean processSucceeded = true;
         protected Map<string,object> CustomData {get;set;}
         protected boolean debugMode = false;
+        protected string debugLevel = DEFAULT_LOGGIN_LEVEL;
         
         public AsyncTriggerArcContext(){
             customData = new Map<string,object>();
@@ -559,11 +683,11 @@ public class AsyncTriggerArc {
         }
         
         public string getProcessStatus(string processName){
-            return globalConfig.itemDetails.containsKey(processName) ? globalConfig.itemDetails.get(processName).status : null;
+            return processesExecStatuses.containsKey(processName) ? processesExecStatuses.get(processName).status : null;
         }
         
-        public void debug(string msg){
-            if(debugMode) system.debug(msg);
+        public void debug(object msg){
+            AsyncTriggerArc.debug(processName,debugMode,debugLevel, msg != null ? string.valueof(msg) : '');
         }
     }
     
@@ -571,41 +695,100 @@ public class AsyncTriggerArc {
     /*
 * Queueable class 
 * Runs when async is needed
-*/
-    class AsyncTriggerArcQueueable implements Queueable{
-        public AsyncTriggerArcConfig Config {get;set;}
-        public AsyncTriggerArqSettings__c currentSetting {get;set;}
-        public AsyncTriggerArcQueueable(AsyncTriggerArcConfig conf, AsyncTriggerArqSettings__c setting){
-            Config = conf;
-            currentSetting = setting;
-        }
-        public void execute(QueueableContext context){
-            
-            //to fix specific issue
-            //globalConfig is empty when queueable is executed
-            //
-            //Also in the unit test when the starttest and stoptest happen
-            //every async jobs or processes are treated as synchronous
-            //but a new transaction is created anyway
-            //globalConfig will be empty by that time 
-            //assigning the config to the globalConfig will allow unit test context
-            //to have the config data
-            globalConfig = config;
-            
-            //run the class of the current setting
-            object output =  RunClass(config, currentSetting);
-            
-            //store the output of the current invocation
-            config.triggerContext.customData.put(currentSetting.Name,output);
-            
-            
-            //chain operations
-            //call the next operation according to the order.
-            Eval(config, true);
-            
-        }
-        
-    }
+*//*
+class AsyncTriggerArcQueueable implements Queueable{
+public AsyncTriggerArcConfig Config {get;set;}
+public AsyncTriggerArqSettings__c currentSetting {get;set;}
+public Map<string, AsyncTriggerArcProcessInfo> pStatuses{get;set;}
+public AsyncTriggerArcQueueable(AsyncTriggerArcConfig conf, AsyncTriggerArqSettings__c setting, Map<string, AsyncTriggerArcProcessInfo> pStatuses){
+Config = conf;
+currentSetting = setting;
+this.pStatuses = pstatuses;
+}
+public void execute(QueueableContext context){
+atarcDebug('EXECUTING ASYNC '+currentSetting.ApexHelperClassName__c);
+
+processesExecStatuses = pstatuses;
+//to fix specific issue
+//globalConfig is empty when queueable is executed
+//
+//Also in the unit test when the starttest and stoptest happen
+//every async jobs or processes are treated as synchronous
+//but a new transaction is created anyway
+//globalConfig will be empty by that time 
+//assigning the config to the globalConfig will allow unit test context
+//to have the config data
+//globalConfig = config;
+
+//run the class of the current setting
+object output =  RunClass(config, currentSetting);
+
+//store the output of the current invocation
+config.triggerContext.customData.put(currentSetting.Name,output);
+
+
+//chain operations
+//call the next operation according to the order.            
+if(DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
+Eval(config, true);
+
+}
+
+}*/
+    
+    
+    
+    public class AsyncTriggerArcQueueable1 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable2 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable3 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable4 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable5 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable6 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable7 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable8 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable9 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable10 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable11 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable12 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable13 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable14 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable15 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable16 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable17 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable18 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable19 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable20 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable21 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable22 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable23 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable24 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable25 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable26 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable27 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable28 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable29 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable30 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable31 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable32 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable33 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable34 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable35 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable36 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable37 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable38 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable39 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable40 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable41 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable42 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable43 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable44 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable45 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable46 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable47 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable48 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable49 extends AsyncTriggerArcQueueableBase{}
+    public class AsyncTriggerArcQueueable50 extends AsyncTriggerArcQueueableBase{}
+    
     
     
     
@@ -615,39 +798,7 @@ public class AsyncTriggerArc {
 * note: because of how apex test engine works, this queuable is not executed
 * from unit testing (test engine does not like to run two queueable jobs in chain)
 */ 
-    class AsyncTriggerArcSynchronousProcess implements Queueable{
-        public AsyncTriggerArcConfig Config {get;set;}
-        
-        public AsyncTriggerArqSettings__c currentSetting {get;set;}
-        public AsyncTriggerArcSynchronousProcess(AsyncTriggerArcConfig conf, AsyncTriggerArqSettings__c setting){
-            Config = conf;
-            currentSetting = setting;
-        }
-        public void execute(QueueableContext context){
-            
-            //to fix specific issue
-            //globalConfig is empty when queueable is executed
-            //
-            //Also in the unit test when the starttest and stoptest happen
-            //every async jobs or processes are treated as synchronous
-            //but a new transaction is created anyway
-            //globalConfig will be empty by that time 
-            //assigning the config to the globalConfig will allow unit test context
-            //to have the config data
-            globalConfig = config;
-            
-            //run the class of the current setting
-            object output =  RunClass(config, currentSetting);
-            
-            //store the output of the current invocation
-            config.triggerContext.customData.put(currentSetting.Name,output);
-            
-            
-            //chain operations
-            //call the next operation according to the order.
-            Eval(config, false);
-            
-        }
+    class AsyncTriggerArcSynchronousProcess extends AsyncTriggerArcQueueableBase{
         
     }
     
@@ -659,6 +810,45 @@ public class AsyncTriggerArc {
     public interface IAsyncTriggerArc {
         
         object execute(AsyncTriggerArcContext triggerContext);
+    }
+    
+    public abstract class AsyncTriggerArcQueueableBase implements Queueable {
+        public AsyncTriggerArcConfig Config {get;set;}        
+        public AsyncTriggerArqSettings__c currentSetting {get;set;}
+        public Map<string, AsyncTriggerArcProcessInfo> pStatuses {get;set;}
+        public string additionalMsg{get;set;}
+        public integer qpool {get;set;}
+        public boolean fromAsync {get;set;}
+        
+        public virtual void execute(QueueableContext context){
+            atarcDebug('EXECUTING ASYNC '+currentSetting.ApexHelperClassName__c +'\n'+additionalMsg);
+            runningAsyncContext = true;
+            processesExecStatuses = pstatuses;
+            mainQueuableUsedPool = qpool;
+            //to fix specific issue
+            //globalConfig is empty when queueable is executed
+            //
+            //Also in the unit test when the starttest and stoptest happen
+            //every async jobs or processes are treated as synchronous
+            //but a new transaction is created anyway
+            //globalConfig will be empty by that time 
+            //assigning the config to the globalConfig will allow unit test context
+            //to have the config data
+            //globalConfig = config;
+            
+            //run the class of the current setting
+            object output =  RunClass(config, currentSetting);
+            
+            //store the output of the current invocation
+            config.triggerContext.customData.put(currentSetting.Name,output);
+            
+            runningAsyncContext = false;
+            //chain operations
+            //call the next operation according to the order.            
+            if(DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
+                Eval(config, true);
+            
+        }
     }
     
     public class AsyncTriggerArcException extends Exception{}
