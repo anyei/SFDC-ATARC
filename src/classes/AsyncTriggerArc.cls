@@ -35,8 +35,8 @@ public class AsyncTriggerArc {
     //possible values QUEUE, FULLASYNC
     public static final string DEFAULT_OPERATION_STRATEGY_MODE = 'QUEUE_SYNCHRONOUS_PRIORITY';
     public static final string OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER = 'QUEUE_RESPECT_ORDER';
-    public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC = 'FULLASYNC_RESPECT_ORDER';
-    public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY = 'FULLASYNC_SYNCHRONOUS_PRIORITY';
+    //public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC = 'FULLASYNC_RESPECT_ORDER';
+    //public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY = 'FULLASYNC_SYNCHRONOUS_PRIORITY';
     
     //global maps, lists, config
     @TestVisible static Map<string,map<string, AsyncTriggerArqSettings__c[]>> arqSettings;    
@@ -53,6 +53,8 @@ public class AsyncTriggerArc {
     @TestVisible static Map<string,Map<string, integer>> triggerExecTrack;
     
     @TestVisible static Map<string, System.LoggingLevel> logginLevelMap;
+    
+    static Map<string, AsyncTriggerArqModeSettings__c> objectProcessingModes;
     
     // @TestVisible static integer mainQueuableUsedPool;
     
@@ -97,8 +99,9 @@ public class AsyncTriggerArc {
         
         globalTransactionLoop = 1;
         
-        globalStrategyMode = DEFAULT_OPERATION_STRATEGY_MODE;
+        globalStrategyMode =DEFAULT_OPERATION_STRATEGY_MODE;//OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER; // DEFAULT_OPERATION_STRATEGY_MODE;
         
+        objectProcessingModes  = AsyncTriggerArqModeSettings__c.getAll();
         //mainQueuableUsedPool = 0;
         
         runningAsyncContext = false;
@@ -125,7 +128,6 @@ public class AsyncTriggerArc {
         for(string skipType : config.skips.keyset()){
             if(skipType == CATEGORY_SKIP) if(skip = config.skips.get(skipType).contains(setting.Category__c)) break;
             if(skipType == OBJECT_SKIP) if(skip = config.skips.get(skipType).contains(setting.SObject__c)) break;
-            if(skipType == TRIGGER_SKIP) if(skip = config.skips.get(skipType).contains(setting.ApexTriggerName__c)) break;
             if(skipType == EVENT_SKIP) if(skip = config.skips.get(skipType).contains(setting.Event__c)) break;
             if(skipType == PROCESS_SKIP) if(skip = config.skips.get(skipType).contains(setting.Name)) break;
             
@@ -134,16 +136,16 @@ public class AsyncTriggerArc {
     }
     boolean SyncFirst(){
         return (
-            DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(globalConfig.strategyMode)  || 
-            OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY.equalsIgnoreCase(globalConfig.strategyMode) 
+            DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(globalConfig.strategyMode)  
+            //OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY.equalsIgnoreCase(globalConfig.strategyMode) 
         );
         
     }
     
     boolean respectOrder(){
         return (
-            OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(globalConfig.strategyMode) ||
-            OPERATION_STRATEGY_MODE_FULL_ASYNC.equalsIgnoreCase(globalConfig.strategyMode)
+            OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(globalConfig.strategyMode) 
+           // OPERATION_STRATEGY_MODE_FULL_ASYNC.equalsIgnoreCase(globalConfig.strategyMode)
         );
     }
     /*
@@ -159,6 +161,8 @@ public class AsyncTriggerArc {
             
             List<AsyncTriggerArqSettings__c> settings =  AsyncTriggerArqSettings__c.GetAll().values();
             
+            
+           
             /*
 * Synchronous settings should be executed first, no matter if in the order of execution they are listed after an async one
 * This is to avoid specific behavior ( If async process A executes and then the next in line to be executed are three sync process
@@ -166,12 +170,14 @@ public class AsyncTriggerArc {
 * 
 */ 
             atarcDebug('respect order : '+ respectOrder() + ' syncfirst '+ syncFirst());
+            boolean syncFirst = SyncFirst();
+            boolean respectOrder = respectOrder();
             
             for(AsyncTriggerArqSettings__c setting : settings){
                 
                 atarcDebug('loading config, entry ' + setting.name + ' async '+ setting.isAsync__c +' object '  + setting.SObject__c + ' event ' + setting.Event__c);
-                
-                if(SyncFirst()){
+                atarcDebug(syncFirst + ' first sync '+ respectOrder);
+                if(syncFirst){
                     /*
                      * All non async processes are executed in the first after call in the transaction transaction
                      */ 
@@ -205,7 +211,7 @@ public class AsyncTriggerArc {
                     }
                     
                     /* RESPECT THE ORDER OF THE PROCESSES*/
-                }else if (respectOrder()){
+                }else if (respectOrder){
                     if(setting.IsActive__c && !canSkip(globalSkip,setting, globalConfig)){
                         
                         //order logic.. as we dont have soql we must order by our self
@@ -235,14 +241,14 @@ public class AsyncTriggerArc {
                     
                   
                     List<integer> opa = ( 
-                        (syncFirst()  || respectOrder()) &&  orderLogicA.containsKey(setting.SObject__c) && orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c) ? 
+                        (syncFirst  || respectOrder) &&  orderLogicA.containsKey(setting.SObject__c) && orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c) ? 
                          orderLogicA.get(setting.SObject__c).get(setting.Event__c) : 
                          new List<Integer>()
                     );
                     
                     
                     List<integer> ops = ( 
-                        (syncFirst()  || respectOrder()) &&  orderLogicS.containsKey(setting.SObject__c) && orderLogicS.get(setting.SObject__c).containsKey(setting.Event__c) ? 
+                        (syncFirst  || respectOrder) &&  orderLogicS.containsKey(setting.SObject__c) && orderLogicS.get(setting.SObject__c).containsKey(setting.Event__c) ? 
                          orderLogicS.get(setting.SObject__c).get(setting.Event__c) : 
                          new List<Integer>()
                     );
@@ -251,15 +257,16 @@ public class AsyncTriggerArc {
                         arqSettings.put(setting.SObject__c, new Map<string, AsyncTriggerArqSettings__c[]>() );
                     
                     if(!arqSettings.get(setting.SObject__c).containsKey(setting.Event__c))
-                        arqSettings.get(setting.SObject__c).put(setting.Event__c, new AsyncTriggerArqSettings__c[(syncFirst() ? opa.size()+ops.size() : opa.size() )] );
+                        arqSettings.get(setting.SObject__c).put(setting.Event__c, new AsyncTriggerArqSettings__c[(syncFirst ? opa.size()+ops.size() : opa.size() )] );
                     
                     
-                    for(integer i =0;i<  (( setting.isAsync__c || respectOrder() ) ? opa.size()  : ops.size() ); i++){
+                    for(integer i =0;i<  (( setting.isAsync__c || respectOrder ) ? opa.size()  : ops.size() ); i++){
+                        atarcDebug(setting.isAsync__c + ' async ' + ' respectOrder ' + string.valueof(respectOrder()) + ' opa size '+ opa.size() + ' ops size ' + ops.size());
                         
-                        if (setting.isAsync__c != true && ops[i] == integer.valueof(setting.order__c) ){                            
+                        if (setting.isAsync__c != true && i < ops.size() && ops[i] == integer.valueof(setting.order__c) ){                            
                             arqSettings.get(setting.SObject__c).get(setting.Event__c).set(i, setting);
                             
-                        }else if(  ( setting.isAsync__c || respectOrder() ) && opa[i] == integer.valueof(setting.order__c))
+                        }else if(  ( setting.isAsync__c || respectOrder ) && opa[i] == integer.valueof(setting.order__c))
                         {      
                             arqSettings.get(setting.SObject__c).get(setting.Event__c).set(i + ( respectOrder() ? 0 : ops.size()), setting);
                         }
@@ -311,9 +318,10 @@ public class AsyncTriggerArc {
         globalConfig.triggerContext.newList = newList;
         globalConfig.triggerContext.oldMap = oldmap;
         globalConfig.triggerContext.newMap = newMap;
-        globalConfig.strategyMode = globalStrategyMode;
         globalConfig.triggerContext.transactionLoop = globalTransactionLoop;
         globalConfig.skipEverything = globalSkip;
+        
+        globalConfig.strategyMode= (objectProcessingModes.containsKey(sObjectName) ?  objectProcessingModes.get(sObjectName).Processing_Mode__c : globalStrategyMode);
         
         
         //the chain of process to execute should be reset every time 
@@ -407,7 +415,7 @@ public class AsyncTriggerArc {
               
               updateTriggerTrack();
               /*********************************/
-              
+             
               List<AsyncTriggerArqSettings__c> settings = arqSettings.get(sObjectName).get(triggerEventTxt);
               
               atarcDebug('Event match found:'+triggerEventTxt+'\nTotal processes:'+settings.size());
@@ -475,7 +483,7 @@ public class AsyncTriggerArc {
             
             
             //async transactions invokations should break this loop
-            if(breakTransaction && DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) ){                
+            if(breakTransaction){ //&& DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) ){                
                 break;
             }
         }
@@ -511,6 +519,7 @@ public class AsyncTriggerArc {
                asyncWorker.currentSetting = setting;
                asyncWorker.config = config;
                asyncWorker.pStatuses = processesExecStatuses;
+               asyncWorker.fromAsync = true;
                //asyncWorker.qpool = mainQueuableUsedPool;
                
                system.enqueueJob(asyncWorker);
@@ -535,6 +544,7 @@ public class AsyncTriggerArc {
                         asyncWorker.currentSetting = setting;
                         asyncWorker.config = config;
                         asyncWorker.pStatuses = processesExecStatuses;
+                        asyncWorker.fromAsync = true;
                         //asyncWorker.qpool = mainQueuableUsedPool;
                         //(config, setting, processesExecStatuses);
                         system.enqueueJob(asyncWorker);
@@ -830,7 +840,7 @@ public class AsyncTriggerArc {
             //chain operations
             //call the next operation according to the order.            
             if(DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
-                Eval(config, true);
+                Eval(config, fromAsync);
             
         }
     }

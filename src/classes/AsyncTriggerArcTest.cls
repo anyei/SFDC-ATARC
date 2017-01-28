@@ -78,7 +78,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
             
     }
     
-    
+    /*
      @testsetup static void setupData(){
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
@@ -760,6 +760,6 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         system.assert(totalProcesses == 3 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 3 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
 		
          
-      }
+      }*/
 
 }
