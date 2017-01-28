@@ -29,8 +29,7 @@ public class AsyncTriggerArc {
     public static final string TRIGGER_SKIP = 'trigger';
     public static final string EVENT_SKIP = 'event';
     public static final string PROCESS_SKIP = 'process';
-    public static final string FRAMEWORK_NAME = 'ATARC';
-    public static final string BASE_QUEUEABLE_BASE_NAME = 'AsyncTriggerArc.AsyncTriggerArcQueueable';
+    public static final string FRAMEWORK_NAME = 'ATARC';    
     public static final integer GOVERNOR_LIMITS_QUEUEABLE = 50;
     
     //possible values QUEUE, FULLASYNC
@@ -40,7 +39,7 @@ public class AsyncTriggerArc {
     public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY = 'FULLASYNC_SYNCHRONOUS_PRIORITY';
     
     //global maps, lists, config
-    @TestVisible static Map<string,Map<string, map<string, AsyncTriggerArqSettings__c[]>>> arqSettings;    
+    @TestVisible static Map<string,map<string, AsyncTriggerArqSettings__c[]>> arqSettings;    
     
     //must be an instance variable
     //this is the state of engine instance
@@ -51,11 +50,11 @@ public class AsyncTriggerArc {
     
     @TestVisible static Map<string, AsyncTriggerArcProcessInfo>  processesExecStatuses;
     
-    @TestVisible static Map<string,Map<string,Map<string, integer>>> triggerExecTrack;
+    @TestVisible static Map<string,Map<string, integer>> triggerExecTrack;
     
     @TestVisible static Map<string, System.LoggingLevel> logginLevelMap;
     
-   // @TestVisible static integer mainQueuableUsedPool;
+    // @TestVisible static integer mainQueuableUsedPool;
     
     static boolean orderProcessed;
     static boolean runningAsyncContext;
@@ -75,9 +74,9 @@ public class AsyncTriggerArc {
     //load initial config
     static{
         
-        arqSettings = new Map<string,Map<string, Map<string, AsyncTriggerArqSettings__c[]>>>();  
+        arqSettings = new Map<string,Map<string, AsyncTriggerArqSettings__c[]>>();  
         
-        triggerExecTrack = new Map<string,Map<string,Map<string, integer>>>();
+        triggerExecTrack = new Map<string,Map<string, integer>>();
         
         processesExecStatuses = new Map<string, AsyncTriggerArcProcessInfo>();
         
@@ -92,7 +91,7 @@ public class AsyncTriggerArc {
                 
                 };
                     
-        orderProcessed = false;
+                    orderProcessed = false;
         
         globalSkip = false;
         
@@ -107,17 +106,12 @@ public class AsyncTriggerArc {
     }
     
     static AsyncTriggerArcQueueableBase RequestQueuable(){
-         
+        
         AsyncTriggerArcQueueableBase newInstance = null;
         
         if(Limits.getQueueableJobs() < GOVERNOR_LIMITS_QUEUEABLE ){
             newInstance = new AsyncTriggerArcQueueable();
-           
-            /*mainQueuableUsedPool = (mainQueuableUsedPool >= GOVERNOR_LIMITS_QUEUEABLE) ? 1 : mainQueuableUsedPool + 1;
-            string fullInstanceNameType = BASE_QUEUEABLE_BASE_NAME+mainQueuableUsedPool;
             
-            newInstance =(AsyncTriggerArcQueueableBase) RequestInstance(fullInstanceNameType, true);
-            atarcDebug(fullInstanceNameType + ' in queue '+ Limits.getQueueableJobs());*/
             atarcDebug(' Requesting queueable instance, current queue count '+ Limits.getQueueableJobs());
         }
         return newInstance;
@@ -138,7 +132,20 @@ public class AsyncTriggerArc {
         }
         return skip;
     }
+    boolean SyncFirst(){
+        return (
+            DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(globalConfig.strategyMode)  || 
+            OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY.equalsIgnoreCase(globalConfig.strategyMode) 
+        );
+        
+    }
     
+    boolean respectOrder(){
+        return (
+            OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(globalConfig.strategyMode) ||
+            OPERATION_STRATEGY_MODE_FULL_ASYNC.equalsIgnoreCase(globalConfig.strategyMode)
+        );
+    }
     /*
 * @method
 * Process the order of the items retrieve from the config settings
@@ -147,7 +154,9 @@ public class AsyncTriggerArc {
         
         if(orderProcessed != true){
             
-            Map<string,Map<string,Map<string, List<integer>>>> orderLogic = new Map<string,Map<string,Map<string, List<integer>>>>();
+            Map<string,Map<string, List<integer>>> orderLogicA = new Map<string,Map<string, List<integer>>>();
+            Map<string,Map<string, List<integer>>> orderLogicS = new Map<string,Map<string, List<integer>>>();
+            
             List<AsyncTriggerArqSettings__c> settings =  AsyncTriggerArqSettings__c.GetAll().values();
             
             /*
@@ -156,40 +165,65 @@ public class AsyncTriggerArc {
 * if we want to separate those transactions then we need to make the sync processes to execute from within an async operation )
 * 
 */ 
-            List<AsyncTriggerArqSettings__c> synchronousSettings = new List<AsyncTriggerArqSettings__c>(); 
-            List<AsyncTriggerArqSettings__c> asynchronousSettings = new List<AsyncTriggerArqSettings__c>();
-            
-            for(AsyncTriggerArqSettings__c setting :  settings){
-                if(setting.isAsync__c)
-                    asynchronousSettings.add(setting);
-                else
-                    synchronousSettings.add(setting);
-            }
-            
-            if(DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(globalConfig.strategyMode)  || OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY.equalsIgnoreCase(globalConfig.strategyMode) ){
-                settings.clear();
-                settings.addAll(synchronousSettings);
-                settings.addAll(asynchronousSettings);
-            }
+            atarcDebug('respect order : '+ respectOrder() + ' syncfirst '+ syncFirst());
             
             for(AsyncTriggerArqSettings__c setting : settings){
                 
-                if(setting.IsActive__c && !canSkip(globalSkip,setting, globalConfig)){
+                atarcDebug('loading config, entry ' + setting.name + ' async '+ setting.isAsync__c +' object '  + setting.SObject__c + ' event ' + setting.Event__c);
+                
+                if(SyncFirst()){
+                    /*
+                     * All non async processes are executed in the first after call in the transaction transaction
+                     */ 
+                    if(setting.IsActive__c && !canSkip(globalSkip,setting, globalConfig) && setting.isAsync__c){
+                        
+                        //order logic.. as we dont have soql we must order by our self
+                        if(!orderLogicA.containsKey(setting.SObject__c))
+                            orderLogicA.put(setting.SObject__c, new Map<string, List<integer>>());
+                        
+                        if(!orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c))
+                            orderLogicA.get(setting.SObject__c).put(setting.Event__c, new List<integer>());
+                      
+                        orderLogicA.get(setting.SObject__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
+                        orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
+                        
+                        
+                        
+                    }else if(setting.IsActive__c && !canSkip(globalSkip,setting, globalConfig) && setting.isAsync__c != true){
+                        
+                        //order logic.. as we dont have soql we must order by our self
+                        if(!orderLogicS.containsKey(setting.SObject__c))
+                            orderLogicS.put(setting.SObject__c, new Map<string, List<integer>>());
+                        
+                        if(!orderLogicS.get(setting.SObject__c).containsKey(setting.Event__c))
+                            orderLogicS.get(setting.SObject__c).put(setting.Event__c, new List<integer>());
+                       
+                        orderLogicS.get(setting.SObject__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
+                        
+                        orderLogicS.get(setting.SObject__c).get(setting.Event__c).sort();
+                        
+                    }
                     
-                    //order logic.. as we dont have soql we must order by our self
-                    if(!orderLogic.containsKey(setting.SObject__c))
-                        orderLogic.put(setting.SObject__c, new Map<string,Map<string, List<integer>>>());
-                    
-                    if(!orderLogic.get(setting.SObject__c).containsKey(setting.ApexTriggerName__c))
-                        orderLogic.get(setting.SObject__c).put(setting.ApexTriggerName__c, new Map<string, List<integer>>());
-                    
-                    if(!orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).containsKey(setting.Event__c))
-                        orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).put(setting.Event__c, new List<integer>());
-                    
-                    orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
-                    
-                    
+                    /* RESPECT THE ORDER OF THE PROCESSES*/
+                }else if (respectOrder()){
+                    if(setting.IsActive__c && !canSkip(globalSkip,setting, globalConfig)){
+                        
+                        //order logic.. as we dont have soql we must order by our self
+                        if(!orderLogicA.containsKey(setting.SObject__c))
+                            orderLogicA.put(setting.SObject__c, new Map<string, List<integer>>());
+                        
+                        if(!orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c))
+                            orderLogicA.get(setting.SObject__c).put(setting.Event__c, new List<integer>());
+                       
+                        orderLogicA.get(setting.SObject__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
+                        orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
+                        
+                        atarcDebug(setting.SObject__c + ' ' + setting.Event__c);
+                        
+                     
+                    }
                 }
+                
                 
             }
             
@@ -199,26 +233,39 @@ public class AsyncTriggerArc {
                     if(firstTime)
                         processesExecStatuses.put(setting.name, new AsyncTriggerArcProcessInfo() );
                     
-                    orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).sort();
-                    List<integer> orderOfProcess = orderLogic.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c);
+                  
+                    List<integer> opa = ( 
+                        (syncFirst()  || respectOrder()) &&  orderLogicA.containsKey(setting.SObject__c) && orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c) ? 
+                         orderLogicA.get(setting.SObject__c).get(setting.Event__c) : 
+                         new List<Integer>()
+                    );
+                    
+                    
+                    List<integer> ops = ( 
+                        (syncFirst()  || respectOrder()) &&  orderLogicS.containsKey(setting.SObject__c) && orderLogicS.get(setting.SObject__c).containsKey(setting.Event__c) ? 
+                         orderLogicS.get(setting.SObject__c).get(setting.Event__c) : 
+                         new List<Integer>()
+                    );
                     
                     if(!arqSettings.containsKey(setting.SObject__c))
-                        arqSettings.put(setting.SObject__c, new Map<string,Map<string, AsyncTriggerArqSettings__c[]>>() );
+                        arqSettings.put(setting.SObject__c, new Map<string, AsyncTriggerArqSettings__c[]>() );
                     
-                    if(!arqSettings.get(setting.SObject__c).containsKey(setting.ApexTriggerName__c))
-                        arqSettings.get(setting.SObject__c).put(setting.ApexTriggerName__c, new Map<string, AsyncTriggerArqSettings__c[] >());
+                    if(!arqSettings.get(setting.SObject__c).containsKey(setting.Event__c))
+                        arqSettings.get(setting.SObject__c).put(setting.Event__c, new AsyncTriggerArqSettings__c[(syncFirst() ? opa.size()+ops.size() : opa.size() )] );
                     
-                    if(!arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).containsKey(setting.Event__c))
-                        arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).put(setting.Event__c, new AsyncTriggerArqSettings__c[orderOfProcess.size()] );
                     
-                    for(integer i =0;i< orderOfProcess.size(); i++){
+                    for(integer i =0;i<  (( setting.isAsync__c || respectOrder() ) ? opa.size()  : ops.size() ); i++){
                         
-                        if(orderOfProcess[i] == integer.valueof(setting.order__c))
-                        {                        
-                            arqSettings.get(setting.SObject__c).get(setting.ApexTriggerName__c).get(setting.Event__c).set(i, setting);
+                        if (setting.isAsync__c != true && ops[i] == integer.valueof(setting.order__c) ){                            
+                            arqSettings.get(setting.SObject__c).get(setting.Event__c).set(i, setting);
                             
+                        }else if(  ( setting.isAsync__c || respectOrder() ) && opa[i] == integer.valueof(setting.order__c))
+                        {      
+                            arqSettings.get(setting.SObject__c).get(setting.Event__c).set(i + ( respectOrder() ? 0 : ops.size()), setting);
                         }
                     }
+                    
+                    
                     
                 }
                 
@@ -227,7 +274,6 @@ public class AsyncTriggerArc {
             }
             
             atarcDebug('Config loaded\n'+settings.size());
-            
         }
         
         
@@ -251,10 +297,10 @@ public class AsyncTriggerArc {
 * @constructor 1
 * 
 */
-    public AsyncTriggerArc(string sObjectName, string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, boolean isUndelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
+    public AsyncTriggerArc(string sObjectName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete, boolean isUndelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
         
-        if(String.isEmpty(sObjectName) || String.isEmpty(triggerName))
-            throw new AsyncTriggerArcException('sObject Name and trigger Name is must be provided');
+        if(String.isEmpty(sObjectName))
+            throw new AsyncTriggerArcException('sObject Name must be provided!!');
         
         globalConfig = new AsyncTriggerArcConfig();
         
@@ -285,10 +331,9 @@ public class AsyncTriggerArc {
 * @constructor 2
 * 
 */
-    public AsyncTriggerArc(string triggerName, boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete,boolean isUndelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
+    public AsyncTriggerArc(boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete,boolean isUndelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
         
-        this( (isDelete == true || isUndelete == true ? oldList[0].getSObjectType().getDescribe().getName() :  newList[0].getSObjectType().getDescribe().getName()),
-             triggerName,
+        this( (isDelete == true || isUndelete == true ? oldList[0].getSObjectType().getDescribe().getName() :  newList[0].getSObjectType().getDescribe().getName()),             
              isBefore,
              isAfter,
              isInsert,
@@ -336,8 +381,7 @@ public class AsyncTriggerArc {
     public void Start(){
         
         atarcDebug('Start\nTransaction loop tracking:'+getTriggerTrack()+
-                   '\nSOBject:'+sObjectName+
-                   '\nTrigger:'+triggerName+
+                   '\nSOBject:'+sObjectName+                   
                    '\nEvent:'+triggerEventTxt+
                    '\nRunningOutOfAnAsyncProcess:'+runningAsyncContext+
                    '\nglobalSkip:'+globalSkip+
@@ -352,9 +396,8 @@ public class AsyncTriggerArc {
             processOrder(true);
         /*********************************/
         
-        if(arqSettings.containsKey(sObjectName) 
-           && arqSettings.get(sObjectName).containsKey(triggerName)
-           && arqSettings.get(SObjectName).get(triggerName).containsKey(triggerEventTxt)
+        if(arqSettings.containsKey(sObjectName)            
+           && arqSettings.get(SObjectName).containsKey(triggerEventTxt)
           ){
               
               /********************************/
@@ -365,9 +408,9 @@ public class AsyncTriggerArc {
               updateTriggerTrack();
               /*********************************/
               
-              List<AsyncTriggerArqSettings__c> settings = arqSettings.get(sObjectName).get(triggerName).get(triggerEventTxt);
+              List<AsyncTriggerArqSettings__c> settings = arqSettings.get(sObjectName).get(triggerEventTxt);
               
-              atarcDebug('Trigger match found:'+triggerEventTxt+'\nTotal processes:'+settings.size());
+              atarcDebug('Event match found:'+triggerEventTxt+'\nTotal processes:'+settings.size());
               
               for(AsyncTriggerArqSettings__c setting : settings){                    
                   globalConfig.Chain.add(setting);                    
@@ -455,65 +498,70 @@ public class AsyncTriggerArc {
            //to fix specific problems when dml happens on a processes and the objects
            //affected by the dml has async process as well
            !runningAsyncContext){
-            /**********************************/
-            //async feature
-            //
-            
-            atarcDebug('Async running...');
-            
-            //async processes should break the upper loop
-            //so that only one active process thread is working            
-            //AsyncTriggerArcQueueable asyncWorker = new AsyncTriggerArcQueueable(config, setting, processesExecStatuses);
-            AsyncTriggerArcQueueableBase asyncWorker = RequestQueuable();
-            asyncWorker.currentSetting = setting;
-            asyncWorker.config = config;
-            asyncWorker.pStatuses = processesExecStatuses;
-            //asyncWorker.qpool = mainQueuableUsedPool;
-            
-            system.enqueueJob(asyncWorker);
-            
-            atarcDebug('Processes executed async');
-            
-            isAsync = true;
-        }else if(!setting.isAsync__c                 
-                 && 
-                 //if we want to respect the order of the processes that are not async
-                 //but they are called after an async process
-                 fromAsync 
-                 && !Test.isRunningTest()){
-            
-            atarcDebug('Synchronous from Async running..');
-            
-            /***************************/
-            //synchronous processes executed from within async transaction should have their own thread
-            //queuable to start a fresh transaction when a synchronous transactions needs to run after
-            //an async transaction
-            AsyncTriggerArcSynchronousProcess asyncWorker = new AsyncTriggerArcSynchronousProcess();
-            asyncWorker.currentSetting = setting;
-            asyncWorker.config = config;
-            asyncWorker.pStatuses = processesExecStatuses;
-            //asyncWorker.qpool = mainQueuableUsedPool;
-            //(config, setting, processesExecStatuses);
-            system.enqueueJob(asyncWorker);
-            
-            atarcDebug('Processes executed async so that sync processes are executed');
-            isAsync = true;
-            
-        }else{
-            
-            atarcDebug('Running...');
-            
-            //after class is executed then get the output if any
-            //after preparing data for the triggerContext upper loop should run the next process in line.
-            object output =  RunClass(config, setting);
-            
-            config.triggerContext.customData.put(setting.Name,output);                         
-            
-        }
+               /**********************************/
+               //async feature
+               //
+               
+               atarcDebug('Async running...');
+               
+               //async processes should break the upper loop
+               //so that only one active process thread is working            
+               //AsyncTriggerArcQueueable asyncWorker = new AsyncTriggerArcQueueable(config, setting, processesExecStatuses);
+               AsyncTriggerArcQueueableBase asyncWorker = RequestQueuable();
+               asyncWorker.currentSetting = setting;
+               asyncWorker.config = config;
+               asyncWorker.pStatuses = processesExecStatuses;
+               //asyncWorker.qpool = mainQueuableUsedPool;
+               
+               system.enqueueJob(asyncWorker);
+               
+               atarcDebug('Processes executed async');
+               
+               isAsync = true;
+           }else if(!setting.isAsync__c                 
+                    && 
+                    //if we want to respect the order of the processes that are not async
+                    //but they are called after an async process
+                    fromAsync 
+                    && !Test.isRunningTest()){
+                        
+                        atarcDebug('Synchronous from Async running..');
+                        
+                        /***************************/
+                        //synchronous processes executed from within async transaction should have their own thread
+                        //queuable to start a fresh transaction when a synchronous transactions needs to run after
+                        //an async transaction
+                        AsyncTriggerArcSynchronousProcess asyncWorker = new AsyncTriggerArcSynchronousProcess();
+                        asyncWorker.currentSetting = setting;
+                        asyncWorker.config = config;
+                        asyncWorker.pStatuses = processesExecStatuses;
+                        //asyncWorker.qpool = mainQueuableUsedPool;
+                        //(config, setting, processesExecStatuses);
+                        system.enqueueJob(asyncWorker);
+                        
+                        atarcDebug('Processes executed async so that sync processes are executed');
+                        isAsync = true;
+                        
+                    }else{
+                        
+                        atarcDebug('Running...');
+                        
+                        //after class is executed then get the output if any
+                        //after preparing data for the triggerContext upper loop should run the next process in line.
+                        object output =  RunClass(config, setting);
+                        
+                        config.triggerContext.customData.put(setting.Name,output);                         
+                        
+                    }
         
         return isAsync;
     }
     
+    
+    /*
+     * @method
+     * RequestInstance
+     */ 
     static Object RequestInstance(string apexClassName, boolean throwError){
         object newInstance = null;
         
@@ -530,6 +578,8 @@ public class AsyncTriggerArc {
         return newInstance;
         
     }
+    
+    
     /********************************/
     //@method
     //RUNCLASS
@@ -559,7 +609,9 @@ public class AsyncTriggerArc {
             //the output represents the data output from a process            
             output = instance.execute(config.triggerContext);    
             
-            atarcDebug('Processes executed '+setting.ApexHelperClassName__c+'\nOutput?:');
+            boolean outputExists = output != null;
+            
+            atarcDebug('Processes executed exit '+setting.ApexHelperClassName__c+'\nOutput Data:' + string.valueof(outputExists));
             
             long totalTime = system.datetime.now().millisecond() - startTime;
             
@@ -587,25 +639,23 @@ public class AsyncTriggerArc {
     
     void updateTriggerTrack(){
         if(!triggerExecTrack.containsKey(sObjectName))
-            triggerExecTrack.put(sObjectName, new Map<string, Map<string, integer>>());
-        if(!triggerExecTrack.get(sObjectName).containsKey(triggerName))
-            triggerExecTrack.get(sObjectName).put(triggerName, new Map<string, integer>());
+            triggerExecTrack.put(sObjectName, new Map<string, integer>());        
         
         
-        triggerExecTrack.get(SObjectName).get(triggerName).put(
+        triggerExecTrack.get(SObjectName).put(
             triggerEventTxt, 
             ( 
-                triggerExecTrack.get(sObjectName).get(triggerName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerName).get(triggerEventTxt) + 1 : 1
+                triggerExecTrack.get(sObjectName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerEventTxt) + 1 : 1
             ) );
     }
     
     integer getTriggerTrack(){  
         return (
             triggerExecTrack.containsKey(sObjectName)
-            && triggerExecTrack.get(sObjectName).containsKey(triggerName)
-            && triggerExecTrack.get(sObjectName).get(triggerName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerName).get(triggerEventTxt) : 0
+            && triggerExecTrack.get(sObjectName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerEventTxt) : 0
         );
     }
+    
     /*
 * Updates the status of the configuration
 */
