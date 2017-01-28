@@ -6,6 +6,7 @@
         <name>ApexClass</name>
     </types>
     <types>
+        <members>AsyncTriggerArqModeSettings__c</members>
         <members>AsyncTriggerArqSettings__c</members>
         <name>CustomObject</name>
     </types>
