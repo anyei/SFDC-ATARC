@@ -26,7 +26,6 @@ public class AsyncTriggerArc {
     public static final string DEFAULT_LOGGIN_LEVEL = 'NONE';
     public static final string CATEGORY_SKIP = 'category';
     public static final string OBJECT_SKIP = 'object';
-    public static final string TRIGGER_SKIP = 'trigger';
     public static final string EVENT_SKIP = 'event';
     public static final string PROCESS_SKIP = 'process';
     public static final string FRAMEWORK_NAME = 'ATARC';    
@@ -341,7 +340,7 @@ public class AsyncTriggerArc {
 */
     public AsyncTriggerArc(boolean isBefore, boolean isAfter, boolean isInsert, boolean isUpdate, boolean isDelete,boolean isUndelete, List<SOBject> newList, List<SObject> oldList,Map<Id, SObject> newMap, Map<id,SObject> oldMap){
         
-        this( (isDelete == true || isUndelete == true ? oldList[0].getSObjectType().getDescribe().getName() :  newList[0].getSObjectType().getDescribe().getName()),             
+        this( ( (isDelete == true || isUndelete == true) && oldList.size() > 0   ? oldList[0].getSObjectType().getDescribe().getName() : (newlist.size() > 0)? newList[0].getSObjectType().getDescribe().getName() : null),             
              isBefore,
              isAfter,
              isInsert,
@@ -711,8 +710,7 @@ public class AsyncTriggerArc {
             categorySkip = new set<string>();
             skips = new Map<string, set<string>>{
                 CATEGORY_SKIP => new set<string>(),
-                    OBJECT_SKIP => new set<string>(),
-                    TRIGGER_SKIP => new set<string>(),
+                    OBJECT_SKIP => new set<string>(),                    
                     EVENT_SKIP => new set<string>(),
                     PROCESS_SKIP => new set<string>()
                     };
