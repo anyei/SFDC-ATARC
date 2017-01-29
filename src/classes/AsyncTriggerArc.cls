@@ -1,6 +1,5 @@
 /*
 * Created By : Angel Robles (anyei)
-* Partners :  Anthony del Rosario
 * Created Date: 1/6/2017
 * Purpose: In a nutshell, runs processes out of a custom setting. The custom setting has a field indicating
 * 			the apex class implementing IAsyncTriggerArc interface which is the code to execute (the process), 
