@@ -27,7 +27,7 @@ With ATARC besides what I just said above, you could control the order of execut
 
 ##### Manual Install
 
-You may manually create the class within your org and copy paste the content of AsyncTriggerArc class as for the AsyncTriggerArcTest and create the custom settings AsyncTriggerArqSettings__c but that's the long path, just use the button above its gonna be easier. 
+You may manually create the class within your org and copy paste the content of AsyncTriggerArc class as for the AsyncTriggerArcTest and create the custom settings AsyncTriggerArqSettings__c and AsyncTriggerArqModeSettings__c but that's the long path, just use the button above its gonna be easier. 
 
 ### Resume of logical steps to implement this framework
 
@@ -51,7 +51,7 @@ With a fresh trigger with no code, you just need to instantiate an ATARC object 
 ```java
 trigger OpportunityBeforeTrigger on Opportunity (before insert) {
     
-    AsyncTriggerArc atarc = new AsyncTriggerArc('OpportunityBeforeTrigger',
+    AsyncTriggerArc atarc = new AsyncTriggerArc(
                                              trigger.isBefore, 
                                               trigger.isAfter, 
                                               trigger.isInsert, 
@@ -68,7 +68,7 @@ trigger OpportunityBeforeTrigger on Opportunity (before insert) {
 }
 ```
 
-In the code above, the constructor accept a bunch of parameters, mainly taken from the **trigger** context variable. The first argument is actually very important, it is the name of the current trigger, in this case is **OpportunityBeforeTrigger**. The call to the **start** method makes the engine run (this is also very important). 
+In the code above, the constructor accept a bunch of parameters, mainly taken from the **trigger** context variable. The call to the **start** method makes the engine run (this is also very important). 
 
 Now that we have our ATARC instance within our trigger, let's build processes to inject them into this trigger. Real apex classes should be created and of course implement a specific interface.
 
@@ -124,16 +124,13 @@ In the example above our handler apex class is NameChanger and the trigger execu
 
 So what we need is a Custom Setting entry, you should have the custom setting called **AsyncTriggerArqSettings** within this repository. This is how the entry should look:
 
-| name           | ApexHelperClassName | SObject     | ApexTriggerName          | Event        | IsActive | isAsync | Order | breakIfError | DependsOnSuccess |
-|----------------|---------------------|-------------|--------------------------|--------------|----------|---------|-------|--------------|-----------|
-| NameChanger1.0 | NameChanger         | Opportunity | OpportunityBeforeTrigger | BeforeInsert | true     | false   | 1     | true         |           |
-|                |                     |             |                          |              |          |         |       |              |           |
-|                |                     |             |                          |              |          |         |       |              |           |
-
+| Name           | ApexHelperClassName | SObject     | Event        | IsActive | IsAsync | Order | DependsOnSuccess | DependsOnError | Debug | DebugLevel |
+|----------------|---------------------|-------------|--------------|----------|---------|-------|------------------|----------------|-------|------------|
+| NameChanger1.0 | NameChanger         | Opportunity | BeforeInsert | true     | false   | 1     |                  |                | true  | DEBUG      |
 
 So, the **name** field is just an irrelevant identifier, but you can use this field to give a name to the process, the rest of the fields are sort of self explanatories but i'll include a section dedicated to the meaning of each of these fields later. For now just take a good look at this table.
 
-**Here the custom setting reference for more info https://github.com/anyei/SFDC-ATARC/wiki/Configuration**
+**Here the custom setting reference for more info https://github.com/anyei/SFDC-ATARC/wiki/Custom-Setting-Reference**
 
 So.....
 
@@ -143,8 +140,6 @@ And.... we are done setting up. That's it. If you try to insert a new opportunit
 ### Issues
 Please refer to the <a href="https://github.com/anyei/SFDC-ATARC/issues">Issues</a> section.
 
-### Pending
 
-1. UPDATE THE WIKI AND README DOCUMENTATION AS MAJOR CHANGE WAS IMPLEMENTED!!
 
 
