@@ -100,7 +100,6 @@ public class AsyncTriggerArc {
         globalStrategyMode =DEFAULT_OPERATION_STRATEGY_MODE;//OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER; // DEFAULT_OPERATION_STRATEGY_MODE;
         
         objectProcessingModes  = AsyncTriggerArqModeSettings__c.getAll();
-        //mainQueuableUsedPool = 0;
         
         runningAsyncContext = false;
         
@@ -498,6 +497,7 @@ public class AsyncTriggerArc {
         boolean isAsync = false;
         config.triggerContext.debugMode = setting.debug__c;
         config.triggerContext.debugLevel = setting.debugLevel__c;
+        config.triggerContext.processSucceeded = true;
         
         if(setting.isAsync__c 
            &&
@@ -790,6 +790,8 @@ public class AsyncTriggerArc {
         
         object execute(AsyncTriggerArcContext triggerContext);
     }
+    
+    
     
     public abstract class AsyncTriggerArcQueueableBase implements Queueable {
         public AsyncTriggerArcConfig Config {get;set;}        
