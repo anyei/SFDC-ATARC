@@ -788,7 +788,7 @@ public class AsyncTriggerArc {
 */ 
     public interface IAsyncTriggerArc {
         
-        void filter(sObject newRecord, sObject oldRecord);
+        void filter(sObject newRecord, sObject oldRecord, AsyncTriggerArcContext triggerContext);
         object execute(AsyncTriggerArcContext triggerContext);
     }
     
