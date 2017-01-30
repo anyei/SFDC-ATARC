@@ -6,6 +6,21 @@
 @IsTest
 public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     
+    public void filter(SObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
+       if(triggerContext.getCurrentProcessName() == 'Test Process 13')
+           triggerContext.setFailed();
+        triggerContext.debug('filter  '+triggerContext.getCurrentProcessName() );
+        if(triggerContext.getCurrentProcessName() == 'Test Process To Error')
+            triggerContext.setFailed();
+    }
+    
+    public void action(SObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
+        if(triggerContext.getCurrentProcessName() == 'Test Process 13')
+           triggerContext.setFailed();
+        
+        if(triggerContext.getCurrentProcessName() == 'Test Process To Error')
+            triggerContext.setFailed();
+    }
     
     /*
      * MOCKING ATARC PROCESS 
@@ -82,16 +97,16 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
      @testsetup static void setupData(){
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=3, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=3, isAsync__c=false,pattern__c='FILTER|EXECUTE|ACTION'),
             new AsyncTriggerArqSettings__c(Name='Test Process 2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,pattern__c='FILTER|EXECUTE|ACTION'),
             new AsyncTriggerArqSettings__c(Name='Test Process 3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false,pattern__c='FILTER|EXECUTE|ACTION'),
             new AsyncTriggerArqSettings__c(Name='Test Process 4',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=4, 
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=4, pattern__c='FILTER|EXECUTE|ACTION',
                                                DependsOn__c = 'Test Process 2',isAsync__c=false),
            new AsyncTriggerArqSettings__c(Name='Test Process 5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                          Event__c='BeforeInsert',IsActive__c=true,Order__c=5,isAsync__c=false)
+                                          Event__c='BeforeInsert',IsActive__c=true,Order__c=5,isAsync__c=false,pattern__c='FILTER|EXECUTE|ACTION')
         };
        
             
@@ -351,7 +366,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
     
      @IsTest static void ApexClassInTheSettingsDoesNotExistsShouldThrowError(){
         insert new AsyncTriggerArqSettings__c(Name='Test Process fake class',SObject__c='Opportunity', ApexHelperClassName__c='FakeRandomClassWhoWIllNeverExistsEverAsyncTriggerWithALongLongLongLOngLOnglONgName',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,BreakIfError__c=true);
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,BreakIfError__c=true, pattern__c='FILTER|EXECUTE|ACTION');
         AsyncTriggerArc atarc = new AsyncTriggerArc(
                                                true, //before
                                               false, 
@@ -381,15 +396,15 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=6, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=6, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
                 
             new AsyncTriggerArqSettings__c(Name='Test Process To Error',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=7, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=7, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
             new AsyncTriggerArqSettings__c(Name='Test Process 8',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process To Error',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=8, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=8, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
                 
             new AsyncTriggerArqSettings__c(Name='Test Process 9',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=9, 
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=9,pattern__c='FILTER|EXECUTE|ACTION', 
                                                isAsync__c=false)
            
         };
@@ -423,6 +438,9 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
             totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
         }
+         
+         system.assert(false, executionResult);
+         
         system.assert(totalProcesses == 9 && totalExecutedProcesses ==7, 'Expected is (totalProcesses 9 totalExecutedProcesses 7) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
 		
         system.assert(atarc.globalConfig.triggerContext.getProcessData('Test Process 6') == 'something from 6', 'Expected is "something from 6" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process 6')+'"');
@@ -443,7 +461,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
          
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 10',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION')
          
            
         };
@@ -495,7 +513,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
          
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 11',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION')
          
            
         };
@@ -547,7 +565,7 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
          
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 12',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION')
          
            
         };
@@ -601,9 +619,9 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
          
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
  			new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process 13',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION')
          
            
         };
@@ -638,7 +656,6 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
             totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
         }
         
-         
         system.assert(totalProcesses == 2 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 2 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
 		
         system.assert(atarc.globalConfig.triggerContext.getProcessStatus('Test Process 13') == AsyncTriggerArc.PROCESS_FAILED, 'Expected is "Failed" Current is "'+atarc.globalConfig.triggerContext.getProcessStatus('Test Process 13')+'"');
@@ -660,9 +677,9 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
          
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
  			new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnError__c='Test Process 13',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION')
          
            
         };
@@ -715,11 +732,11 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
          
         List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
             new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
  			new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process 13',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
             new AsyncTriggerArqSettings__c(Name='Test Process 15',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION')
          
            
         };
