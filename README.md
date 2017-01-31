@@ -35,7 +35,7 @@ Based on friends feedbacks, here a resume of the steps needed to implement this 
 
 * Create an instance of the ATARC engine within the trigger.
 * Create apex handler class that implements the interface AsyncTriggerArc.IAsyncTriggerArc.
-* Add record to the custom setting AsyncTriggerArqSettings.
+* Add record to the custom setting AsyncTriggerArqSettings, actually this is how the engine knows what helper class to use in a specific object/event combination.
 
 
 
