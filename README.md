@@ -101,7 +101,7 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
 
 ```
 
-The above apex class is a simple implementation of the interface **AsyncTriggerArc.IAsyncTriggerArc**, this is a process for ATARC. It is mandatory to implement this interface. 
+The above apex class is a simple implementation of the interface **AsyncTriggerArc.IAsyncTriggerArc**, this is a process for ATARC. It is mandatory to implement this interface and of course that you have to at least declare an empty place holder for the **filter**, **execute** and **action** methods. For now, just know the three of them plays their role but the execute we could say is the main one as it is the bulkified one. 
 
 The example above doesn't do much, it is just returning null value. The parameter **triggerContext** is provided by ATARC engine and contains a lot of trigger context variables such as isBefore, isAfter, isInsert etc.
 
