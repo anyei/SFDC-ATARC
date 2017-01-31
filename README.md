@@ -146,9 +146,9 @@ In the example above our handler apex class is NameChanger and the trigger execu
 
 So what we need is a Custom Setting entry, you should have the custom setting called **AsyncTriggerArqSettings** within this repository. This is how the entry should look:
 
-| Name           | ApexHelperClassName | SObject     | Event        | IsActive | IsAsync | Order | DependsOnSuccess | DependsOnError | Debug | DebugLevel |
-|----------------|---------------------|-------------|--------------|----------|---------|-------|------------------|----------------|-------|------------|
-| NameChanger1.0 | NameChanger         | Opportunity | BeforeInsert | true     | false   | 1     |                  |                | true  | DEBUG      |
+| Name                      | ApexHelperClassName | SObject     | Event        | IsActive | IsAsync | Order | DependsOnSuccess | DependsOnError | Debug | DebugLevel | breakIfError | pattern |
+|---------------------------|---------------------|-------------|--------------|----------|---------|-------|------------------|----------------|-------|------------|--------------|---------|
+| NameChanger1.0            | NameChanger         | Opportunity | BeforeInsert | true     | false   | 1     |                  |                | true  | DEBUG      | false        | EXECUTE |
 
 So, the **name** field is just an irrelevant identifier, but you can use this field to give a name to the process, the rest of the fields are sort of self explanatories but i'll include a section dedicated to the meaning of each of these fields later. For now just take a good look at this table.
 
