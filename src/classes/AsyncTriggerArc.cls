@@ -175,14 +175,13 @@ public class AsyncTriggerArc {
              * if we want to separate those transactions then we need to make the sync processes to execute from within an async operation )
              * 
              */
-            atarcDebug('respect order : ' + respectOrder() + ' syncfirst ' + syncFirst());
+            
             boolean syncFirst = SyncFirst();
             boolean respectOrder = respectOrder();
 
             for (AsyncTriggerArqSettings__c setting: settings) {
 
                 atarcDebug('loading config, entry ' + setting.name + ' async ' + setting.isAsync__c + ' object ' + setting.SObject__c + ' event ' + setting.Event__c);
-                atarcDebug(syncFirst + ' first sync ' + respectOrder);
                 if (syncFirst) {
                     /*
                      * All non async processes are executed in the first after call in the transaction transaction
@@ -229,10 +228,6 @@ public class AsyncTriggerArc {
 
                         orderLogicA.get(setting.SObject__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
                         orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
-
-                        atarcDebug(setting.SObject__c + ' ' + setting.Event__c);
-
-
                     }
                 }
 
@@ -267,7 +262,6 @@ public class AsyncTriggerArc {
 
 
                     for (integer i = 0; i < ((setting.isAsync__c || respectOrder) ? opa.size() : ops.size()); i++) {
-                        atarcDebug(setting.isAsync__c + ' async ' + ' respectOrder ' + string.valueof(respectOrder()) + ' opa size ' + opa.size() + ' ops size ' + ops.size());
 
                         if (setting.isAsync__c != true && i < ops.size() && ops[i] == integer.valueof(setting.order__c)) {
                             arqSettings.get(setting.SObject__c).get(setting.Event__c).set(i, setting);
@@ -477,17 +471,17 @@ public class AsyncTriggerArc {
 
                         long startTime = system.datetime.now().millisecond();
 
-                        if (!includePattern(PATTERN_FILTER, setting) && !includePattern(PATTERN_EXECUTE, setting)) {
-                            //configuring
-                            config.triggerContext.debugMode = setting.debug__c;
-                            config.triggerContext.debugLevel = setting.debugLevel__c;
-                            config.triggerContext.processSucceeded = true;
-                            config.triggerContext.processName = setting.name;
-                        }
-
-                        //invoking the "filter" method
+                        //configuring
+                        config.triggerContext.debugMode = setting.debug__c;
+                        config.triggerContext.debugLevel = setting.debugLevel__c;
+                        config.triggerContext.processName = setting.name;
+                        
+                        //if previous steps of the patterns ran well.
+                        config.triggerContext.processSucceeded =  (processesExecStatuses.get(setting.name).status == PROCESS_EXECUTED );
+                        
+                        //invoking the "action" method
                         try {
-
+							
                             if (String.isNotEmpty(setting.DependsOn__c) &&
                                 processesExecStatuses.containsKeY(setting.DependsOn__c) &&
                                 processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED &&
@@ -531,6 +525,7 @@ public class AsyncTriggerArc {
 
 
                             }
+                            
 
 
                         } catch (Exception err) {
@@ -549,7 +544,7 @@ public class AsyncTriggerArc {
                                 throw err;
                             }
                         }
-
+                        
                     }
                 }
             }
@@ -558,7 +553,7 @@ public class AsyncTriggerArc {
     }
 
     static void runFilterPattern(AsyncTriggerArcConfig config, boolean deletionContext, map < string, IAsyncTriggerArc > instances, List < AsyncTriggerArqSettings__c > chain) {
-        atarcDebug('Running first loop for FILTER pattern');
+        atarcDebug('Running first loop for FILTER pattern ');
 
         for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
             for (AsyncTriggerArqSettings__c setting: chain) {
@@ -579,6 +574,7 @@ public class AsyncTriggerArc {
 
                     //invoking the "filter" method
                     try {
+                        
 
                         if (String.isNotEmpty(setting.DependsOn__c) &&
                             processesExecStatuses.containsKeY(setting.DependsOn__c) &&
@@ -616,15 +612,15 @@ public class AsyncTriggerArc {
                             instance.filter((deletionContext == true ? record : (config.triggerContext.oldMap != null ? config.triggerContext.oldMap.get(record.id) : null)), (deletionContext == true ? null : record), config.triggerContext);
 
                             long totalTime = system.datetime.now().millisecond() - startTime;
-							
-                            atarcDebug(config.triggerContext.processSucceeded + ' process ok');
-                            
+                           
                             UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED));
 
                             UpdateProcessTime(config, setting, totalTime);
 
 
                         }
+                        
+                       
 
 
                     } catch (Exception err) {
@@ -645,7 +641,7 @@ public class AsyncTriggerArc {
                             throw err;
                         }
                     }
-
+                    
                 }
             }
         }
@@ -682,11 +678,13 @@ public class AsyncTriggerArc {
                 config.triggerContext.processName = setting.name;
             }
 
+            
             if (String.isNotEmpty(setting.DependsOn__c) &&
                 processesExecStatuses.containsKeY(setting.DependsOn__c) &&
                 processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED
             ) {
 
+                atarcDebug('Running with dependencies ');
                 //processes with dependencies should execute only if dependency process executed successfully
                 breakTransaction = Run(instances, config, setting, fromAsync);
 
@@ -743,8 +741,6 @@ public class AsyncTriggerArc {
         List < AsyncTriggerArqSettings__c > syncProcessesToRunActionPattern = new List < AsyncTriggerArqSettings__c > ();
 
         boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
-
-        atarcDebug('size of chain ' + config.chain.size());
 
         /*
          * FIRST LOOP TO DO FILTER PATTERN
@@ -1100,7 +1096,7 @@ public class AsyncTriggerArc {
         }
 
         protected string processName;
-        protected boolean processSucceeded = true;
+        protected boolean processSucceeded = null;
         protected Map < string, object > CustomData {
             get;
             set;

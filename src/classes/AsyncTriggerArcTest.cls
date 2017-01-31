@@ -18,8 +18,10 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         if(triggerContext.getCurrentProcessName() == 'Test Process 13')
            triggerContext.setFailed();
         
+        triggerContext.debug('current processes ' + triggerContext.getCurrentProcessName());
+		system.debug('algo from action '+ triggerContext.getCurrentProcessName());        
         if(triggerContext.getCurrentProcessName() == 'Test Process To Error')
-            triggerContext.setFailed();
+        {triggerContext.setFailed(); triggerContext.debug('set to failed!'); }
     }
     
     /*
@@ -399,9 +401,9 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
                                            Event__c='BeforeInsert',IsActive__c=true,Order__c=6, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
                 
             new AsyncTriggerArqSettings__c(Name='Test Process To Error',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=7, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
+                                           debug__c = true, debugLevel__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=7, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
             new AsyncTriggerArqSettings__c(Name='Test Process 8',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process To Error',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=8, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
+                                           debug__c = true, debugLevel__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=8, isAsync__c=false, pattern__c='FILTER|EXECUTE|ACTION'),
                 
             new AsyncTriggerArqSettings__c(Name='Test Process 9',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='BeforeInsert',IsActive__c=true,Order__c=9,pattern__c='FILTER|EXECUTE|ACTION', 
@@ -438,8 +440,6 @@ public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
         for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
             totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
         }
-         
-         system.assert(false, executionResult);
          
         system.assert(totalProcesses == 9 && totalExecutedProcesses ==7, 'Expected is (totalProcesses 9 totalExecutedProcesses 7) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
 		
