@@ -138,13 +138,13 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
 }
 ```
 
-### Add record to the custom setting AsyncTriggerArqSettings (a.k.a atarc injector)
+### Add record to the custom setting "ATARC Process Settings" (a.k.a atarc injector)
 
 The last piece in order to make this work is to hook your apex class into the engine and tell the engine what is the trigger executing the class.
 
 In the example above our handler apex class is NameChanger and the trigger executing it is OpportunityBeforeTrigger. 
 
-So what we need is a Custom Setting entry, you should have the custom setting called **AsyncTriggerArqSettings** within this repository. This is how the entry should look:
+So what we need is a Custom Setting entry, you should have the custom setting called **ATARC Process Settings** within this repository. This is how the entry should look:
 
 | Name                      | ApexHelperClassName | SObject     | Event        | IsActive | IsAsync | Order | DependsOnSuccess | DependsOnError | Debug | DebugLevel | breakIfError | pattern |
 |---------------------------|---------------------|-------------|--------------|----------|---------|-------|------------------|----------------|-------|------------|--------------|---------|
