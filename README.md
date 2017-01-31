@@ -2,9 +2,9 @@
 
 Inbound request ahead but Opportunity triggers are at their limits!! 
 
-Triggers are flooded with functionalities and salesforce governor limits are a pain in my.... neck, how can i come up with something so that at least let us make some extra space to include another process that needs to run within this trigger?. I think i'm not the only one nor the first one who have asked that question.
+Triggers are flooded with functionalities and salesforce governor limits within DML transactions are a pain in my.... neck, how can i come up with something so that at least let us make some extra space within the transaction to include another process that needs to run within this trigger with a better performance and efficiency?. I think i'm not the only one nor the first one who have asked that question.
 
-Imagine you could found a framework that allows you to fight against the de-facto governor limit situation. Let me introduce ATARC (heroic music playing in the background). 
+Imagine you could found a framework that allows you to fight against the de-facto governor limit situation within transactions. Let me introduce ATARC (heroic music playing in the background). 
 
 I understand there are many good trigger frameworks out there already but I also understand none of them treated the topic as this approach. 
 
@@ -12,9 +12,9 @@ I understand there are many good trigger frameworks out there already but I also
 
 # What is ATARC
 
-ATARC is a framework or toolset and guideline (i'm not sure how to call it actually) created with that single purpose in mind, to optimize process executions within triggers hence maximize resources availability within a transaction.
+ATARC is a framework or toolset and guidelines (i'm not sure how to call it actually) created with that single purpose in mind, to optimize process executions within triggers hence maximize resources availability within a DML transaction.
 
-With ATARC besides what I just said above, you could control the order of execution of your processes or unit of work, make them active or inactivate whenever the heck you want and last but not least control dependencies execution.... all of this on runtime! This is the overall idea, i hope you get it.
+With ATARC besides what I just said above, you could control the order of execution of your processes or unit of work, make them active or inactivate whenever the heck you want and last but not least control dependencies execution.... all of this on runtime! This is the overall idea, I hope you get it, and also there are other cool features I have included in the framework.
 
 ### Install Components into your org
 
@@ -37,6 +37,8 @@ Based on friends feedbacks, here a resume of the steps needed to implement this 
 * Create apex handler class that implements the interface AsyncTriggerArc.IAsyncTriggerArc.
 * Add record to the custom setting AsyncTriggerArqSettings, actually this is how the engine knows what helper class to use in a specific object/event combination.
 
+But, please read the <a href="https://github.com/anyei/SFDC-ATARC/wiki/ATARC-Phylosophy-(ATARC-BIBLE)">ATARC BIBLE</a> so that you get the phylosophy of the framework. Including the best practices, suggestions and considerations when using ATARC. https://github.com/anyei/SFDC-ATARC/wiki/ATARC-Phylosophy-(ATARC-BIBLE)
+
 
 
 ## The simplest form of Implementation & Usage
@@ -49,7 +51,7 @@ Let's take a look at how the triggers where you want to implement ATARC should b
 With a fresh trigger with no code, you just need to instantiate an ATARC object passing the necessary parameters:
 
 ```java
-trigger OpportunityBeforeTrigger on Opportunity (before insert) {
+trigger ATARCOpportunityTrigger on Opportunity (before insert, before update, before delete, after insert, after update, after delete, after undelete) {
     
     AsyncTriggerArc atarc = new AsyncTriggerArc(
                                              trigger.isBefore, 
@@ -68,7 +70,7 @@ trigger OpportunityBeforeTrigger on Opportunity (before insert) {
 }
 ```
 
-In the code above, the constructor accept a bunch of parameters, mainly taken from the **trigger** context variable. The call to the **start** method makes the engine run (this is also very important). 
+In the code above, the constructor accept a bunch of parameters, mainly taken from the **trigger** context variable. The call to the **start** method makes the engine run (this is also very important). Only one trigger is enought but if it works if you have multiple triggers as well but make sure they are attach to different events.
 
 Now that we have our ATARC instance within our trigger, let's build processes to inject them into this trigger. Real apex classes should be created and of course implement a specific interface.
 
@@ -108,8 +110,7 @@ Now in this example, let's put some functionality to this class, it will change 
 ```java
 public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
     
-    Map<id, string> opptyNewNames = new Map<Id, string>();
-    
+   
     public void filter(sObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
       
       //called one time per each record
@@ -118,6 +119,7 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
     
     public object execute(AsyncTriggerArc.AsyncTriggerArcContext triggerContext)
     {  
+       //called onces within the transaction
         
         List<Opportunity> ops = (List<Opportunity>)triggerContext.newList;
         
