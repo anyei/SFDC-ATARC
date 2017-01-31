@@ -476,8 +476,15 @@ public class AsyncTriggerArc {
                         config.triggerContext.debugLevel = setting.debugLevel__c;
                         config.triggerContext.processName = setting.name;
                         
+                        
+                       /*
+                        * BREAKING LOOP IF PREVIOUS PATTERN DIDN'T EXECUTED PROPERLY
+                        */ 
+                        if( (includePattern(PATTERN_EXECUTE, setting) || includePattern(PATTERN_FILTER, setting)) &&  processesExecStatuses.get(setting.name).status != PROCESS_EXECUTED)
+                            continue; //if previous pattern executed without succeed then just break/
+                            
                         //if previous steps of the patterns ran well.
-                        config.triggerContext.processSucceeded =  (processesExecStatuses.get(setting.name).status == PROCESS_EXECUTED );
+                        config.triggerContext.processSucceeded =  true;
                         
                         //invoking the "action" method
                         try {
@@ -669,14 +676,19 @@ public class AsyncTriggerArc {
                 break;
             }
             /***********************************/
-
-            if (!includePattern(PATTERN_FILTER, setting)) {
-                //configuring
+            
+    			//configuring
                 config.triggerContext.debugMode = setting.debug__c;
                 config.triggerContext.debugLevel = setting.debugLevel__c;
                 config.triggerContext.processSucceeded = true;
                 config.triggerContext.processName = setting.name;
-            }
+            
+            			/*
+                        * BREAKING LOOP IF PREVIOUS PATTERN DIDN'T EXECUTED PROPERLY
+                        */ 
+                        if( includePattern(PATTERN_FILTER, setting) &&  processesExecStatuses.get(setting.name).status != PROCESS_EXECUTED)
+                            continue; //if previous pattern executed without succeed then just break/
+                      
 
             
             if (String.isNotEmpty(setting.DependsOn__c) &&
@@ -737,7 +749,7 @@ public class AsyncTriggerArc {
         atarcDebug('Preparing to start invoke processes');
 
         map < string, IAsyncTriggerArc > instances = getInstances(config);
-
+		
         List < AsyncTriggerArqSettings__c > syncProcessesToRunActionPattern = new List < AsyncTriggerArqSettings__c > ();
 
         boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
@@ -796,6 +808,8 @@ public class AsyncTriggerArc {
             asyncWorker.config = config;
             asyncWorker.pStatuses = processesExecStatuses;
             asyncWorker.fromAsync = true;
+            asyncWorker.instances =  (instances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArc > { setting.name => instances.get(setting.name)} : null);
+                
             //asyncWorker.qpool = mainQueuableUsedPool;
 
             system.enqueueJob(asyncWorker);
@@ -820,6 +834,7 @@ public class AsyncTriggerArc {
             asyncWorker.config = config;
             asyncWorker.pStatuses = processesExecStatuses;
             asyncWorker.fromAsync = true;
+            asyncWorker.instances =  (instances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArc > { setting.name => instances.get(setting.name)} : null);
             //asyncWorker.qpool = mainQueuableUsedPool;
             //(config, setting, processesExecStatuses);
             system.enqueueJob(asyncWorker);
@@ -869,10 +884,10 @@ public class AsyncTriggerArc {
     //@method
     //RUNCLASS
     /********************************/
-    static Object RunClass(Map < string, IAsyncTriggerArc > instances, AsyncTriggerArcConfig config, AsyncTriggerArqSettings__c setting) {
+    static Object RunClass(Map < string, IAsyncTriggerArc > instances, AsyncTriggerArcConfig config, AsyncTriggerArqSettings__c setting) {        
         IAsyncTriggerArc instance = (
             instances != null &&
-            instances.containsKey(setting.apexHelperClassName__c) ? instances.get(setting.apexHelperClassName__c) :
+            instances.containsKey(setting.name) ? instances.get(setting.name) :
             (IAsyncTriggerArc) RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c)
         );
 
@@ -1192,15 +1207,20 @@ public class AsyncTriggerArc {
             get;
             set;
         }
+		public Map<string, IAsyncTriggerArc> instances {
+            get;
+            set;
+        }
 
         public virtual void execute(QueueableContext context) {
-            atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg);
+            atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg );
 
-            Map < string, IAsyncTriggerArc > instances = new Map < string, IAsyncTriggerArc > {
+             instances = (instances != null && instances.containsKey(currentSetting.name)) ? instances : new Map < string, IAsyncTriggerArc > {
 
                 currentSetting.Name => (IAsyncTriggerArc) RequestInstance(currentSetting.ApexHelperClassName__c, currentSetting.breakIfError__c)
-            };
+            };        
 
+                
             //to overcome sfdc limit 
             //(only one queueable can be called from within a queueable so any dlm inside the implementation 
             //of the this context will be executed within this transaction unfortunately)
@@ -1215,6 +1235,7 @@ public class AsyncTriggerArc {
                 currentSetting
             });
 
+            
             //to fix specific issue
             //globalConfig is empty when queueable is executed
             //
