@@ -80,10 +80,7 @@ This is how you should implement your helper class.
 
 ```java
 public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {    
-    
-    public void filter(sObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
-      //called one time per each record
-    }
+  
     
     public object execute(AsyncTriggerArc.AsyncTriggerArcContext triggerContext)
     {  
@@ -92,10 +89,7 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
         return null;
         
     }
-    
-    public void action(sObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
-      //called one time per each record
-    }
+
 
 }
 
@@ -110,12 +104,7 @@ Now in this example, let's put some functionality to this class, it will change 
 ```java
 public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
     
-   
-    public void filter(sObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
-      
-      //called one time per each record
-     
-    }
+  
     
     public object execute(AsyncTriggerArc.AsyncTriggerArcContext triggerContext)
     {  
@@ -131,9 +120,7 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
         
     }
     
-    public void action(sObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
-      //called one time per each record
-    }
+  
 
 }
 ```
