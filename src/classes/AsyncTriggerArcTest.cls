@@ -4,7 +4,7 @@
  *   
  */ 
 @IsTest
-public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArc {
+public class AsyncTriggerArcTest implements AsyncTriggerArc.IAsyncTriggerArcFEA {
     
     public void filter(SObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
        if(triggerContext.getCurrentProcessName() == 'Test Process 13')
