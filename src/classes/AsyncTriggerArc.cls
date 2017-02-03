@@ -81,7 +81,7 @@ public class AsyncTriggerArc {
     //load initial config
     static {
         customData = new Map < string, object > ();
-            
+        
         arqSettings = new Map < string, Map < string, AsyncTriggerArqSettings__c[] >> ();
         
         triggerExecTrack = new Map < string, Map < string, integer >> ();
@@ -429,11 +429,11 @@ public class AsyncTriggerArc {
                    globalConfig.Chain.add(setting);
                }
                
-               Eval(globalConfig, false);
+               Eval(globalConfig, false, null, null);
            }
         
         
-         atarcDebug('Exit Start\nTransaction loop tracking:' + getTriggerTrack() +
+        atarcDebug('Exit Start\nTransaction loop tracking:' + getTriggerTrack() +
                    '\nSOBject:' + sObjectName +
                    '\nEvent:' + triggerEventTxt +
                    '\nRunningOutOfAnAsyncProcess:' + runningAsyncContext +
@@ -456,7 +456,7 @@ public class AsyncTriggerArc {
             //simple skip functionality
             if (canSkip(config.skipEverything, setting, config)) {
                 atarcDebug('BYPASS FOUND');
-                break;
+                continue;
             }
             /***********************************/
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
@@ -485,6 +485,7 @@ public class AsyncTriggerArc {
             /***********************************/
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
             IAsyncTriggerArcFEA instance = (o instanceof IAsyncTriggerArcFEA) ? (IAsyncTriggerArcFEA)o: null;
+            
             if (instance != null)
                 instances.put(setting.name, instance);
         }
@@ -590,6 +591,11 @@ public class AsyncTriggerArc {
                         }
                         
                     }
+                    
+                    //if this is running from async context
+                    //break
+                    if(setting.isAsync__c)
+                        break;
                 }
             }
             atarcDebug('Running ACTION Pattern COMPLETE');
@@ -600,6 +606,7 @@ public class AsyncTriggerArc {
         atarcDebug('Running first loop for FILTER pattern ');
         
         for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
+            
             for (AsyncTriggerArqSettings__c setting: chain) {
                 
                 if (feaInstances.containsKey(setting.name)) {
@@ -687,6 +694,12 @@ public class AsyncTriggerArc {
                     }
                     
                 }
+                
+                
+                //if this is running from async context
+                //only one setting should be evaluated
+                if(setting.isAsync__c)
+                    break;
             }
         }
         
@@ -782,11 +795,11 @@ public class AsyncTriggerArc {
     //@method
     //Eval
     /*****************************/
-    static void Eval(AsyncTriggerArcConfig config, boolean fromAsync) {
+    static void Eval(AsyncTriggerArcConfig config, boolean fromAsync,  map < string, IAsyncTriggerArc > instances, map < string, IAsyncTriggerArcFEA > feaInstances) {
         atarcDebug('Preparing to start invoke processes');
         
-        map < string, IAsyncTriggerArc > instances = getInstances(config);
-        map < string, IAsyncTriggerArcFEA > feaInstances = getFeaInstances(config, instances.keyset());
+        instances = fromAsync ? instances : getInstances(config);
+        feaInstances = fromAsync ? feaInstances : getFeaInstances(config, instances.keyset());
         
         List < AsyncTriggerArqSettings__c > syncProcessesToRunActionPattern = new List < AsyncTriggerArqSettings__c > ();
         
@@ -797,8 +810,8 @@ public class AsyncTriggerArc {
 */
         runFilterPattern(config, deletionContext, feaInstances, config.chain);
         
-        
-        
+        //if(config.triggerContext.isAfter)
+        //system.assert(false, feaInstances.keyset());
         /*
 * EXECUTION invoke, no loop in here
 */
@@ -847,8 +860,8 @@ public class AsyncTriggerArc {
                 asyncWorker.pStatuses = processesExecStatuses;
                 asyncWorker.fromAsync = true;
                 asyncWorker.pCustomData =  customData;
-                asyncWorker.instances =  (instances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArc > { setting.name => instances.get(setting.name)} : new Map<string,IAsyncTriggerArc>() );
-                asyncWorker.feaInstances =  (feaInstances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArcFEA > { setting.name => feaInstances.get(setting.name)} : new Map<string,IAsyncTriggerArcFEA>() );   
+                asyncWorker.instances = instances;  //(instances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArc > { setting.name => instances.get(setting.name)} : new Map<string,IAsyncTriggerArc>() );
+                asyncWorker.feaInstances = feaInstances; //(feaInstances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArcFEA > { setting.name => feaInstances.get(setting.name)} : new Map<string,IAsyncTriggerArcFEA>() );   
                 //asyncWorker.qpool = mainQueuableUsedPool;
                 
                 system.enqueueJob(asyncWorker);
@@ -874,8 +887,8 @@ public class AsyncTriggerArc {
                            asyncWorker.pStatuses = processesExecStatuses;
                            asyncWorker.fromAsync = true;
                            asyncWorker.pCustomData =  customData;
-                           asyncWorker.instances =  (instances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArc > { setting.name => instances.get(setting.name)} : new Map<string, IAsyncTriggerArc>());
-                           asyncWorker.feaInstances =  (feaInstances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArcFEA > { setting.name => feaInstances.get(setting.name)} : new Map<string,IAsyncTriggerArcFEA>() );   
+                           asyncWorker.instances = instances;// (instances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArc > { setting.name => instances.get(setting.name)} : new Map<string, IAsyncTriggerArc>());
+                           asyncWorker.feaInstances = feaInstances; //  (feaInstances.containsKey(setting.name) ? new Map<string, IAsyncTriggerArcFEA > { setting.name => feaInstances.get(setting.name)} : new Map<string,IAsyncTriggerArcFEA>() );   
                            //asyncWorker.qpool = mainQueuableUsedPool;
                            //(config, setting, processesExecStatuses);
                            system.enqueueJob(asyncWorker);
@@ -929,29 +942,12 @@ public class AsyncTriggerArc {
         
         object o =  null;
         
-        IAsyncTriggerArc instance = (
-            instances != null &&
+        IAsyncTriggerArc instance = (          
             instances.containsKey(setting.name) ? instances.get(setting.name) : null
         );
-        
-        if( instance == null)
-        {
-            o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
-            if(o instanceof IAsyncTriggerArc)
-                instance = (IAsyncTriggerArc) o;
-        }
-        
-        
-        IAsyncTriggerArcFEA feaInstance = (
-            feaInstances != null && instance == null &&
+        IAsyncTriggerArcFEA feaInstance = (            
             feaInstances.containsKey(setting.name) ? feaInstances.get(setting.name) : null           
         );
-        
-        if( instance == null && feaInstance == null){
-            o =  RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
-            if(o instanceof IAsyncTriggerArcFEA)
-                feaInstance = (IAsyncTriggerArcFEA)o;
-        }
         
         Object output = null;
         
@@ -1178,7 +1174,7 @@ public class AsyncTriggerArc {
         protected string debugLevel = DEFAULT_LOGGIN_LEVEL;
         
         public AsyncTriggerArcContext() {
-           
+            
         }
         
         public object getProcessData(string processName) {
@@ -1298,36 +1294,32 @@ public class AsyncTriggerArc {
             atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg );
             
             instances = instances.containsKey(currentSetting.name) ? instances : new Map<string,IAsyncTriggerArc>() ; 
+            feaInstances = feaInstances.containsKey(currentSetting.name) ? feaInstances : new Map<string, IAsyncTriggerArcFEA>() ;
             
             object o = null;
             
-            if(instances.size() == 0)
+            if(instances.size() == 0 && feaInstances.size() == 0)
             {
+                system.assert(false, 'entro toma!');
                 o = RequestInstance(currentSetting.ApexHelperClassName__c, currentSetting.breakIfError__c);
                 if(o instanceof IAsyncTriggerArc){
                     instances =  new Map < string, IAsyncTriggerArc > {
                         
                         currentSetting.Name => (IAsyncTriggerArc)o 
                             };
-                 }
-                if(instances.size() == 0){
-                    feaInstances = (feaInstances != null && feaInstances.containsKey(currentSetting.name)) ? feaInstances : new Map<string, IAsyncTriggerArcFEA>() ;
-                    if(feaInstances == null){
-                        if(o instanceof IAsyncTriggerArcFEA){
-                            feaInstances =  new Map < string, IAsyncTriggerArcFEA > {
-                                currentSetting.Name => (IAsyncTriggerArcFEA)o
-                            };
-                        }
-                    }
-				}
+                                }
+        
+               if(o instanceof IAsyncTriggerArcFEA){
+                    feaInstances =  new Map < string, IAsyncTriggerArcFEA > {
+                     currentSetting.Name => (IAsyncTriggerArcFEA)o
+                    };
+               }
                 
                 
             }
             
             
-            
-            
-           customData = pCustomData;
+            customData = pCustomData;
             
             
             //to overcome sfdc limit 
@@ -1382,7 +1374,7 @@ public class AsyncTriggerArc {
             //chain operations
             //call the next operation according to the order.            
             if (DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
-                Eval(config, fromAsync);
+                Eval(config, fromAsync, instances, feaInstances);
             
         }
     }
