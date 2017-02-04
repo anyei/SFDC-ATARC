@@ -2,11 +2,11 @@
 * Created By : Angel Robles (anyei)
 * Created Date: 1/6/2017
 * Purpose: In a nutshell, runs processes out of a custom setting. The custom setting has a field indicating
-* 			the apex class implementing IAsyncTriggerArc interface which is the code to execute (the process), 
-* 			order of execution, a flag to make it active or not (if not active it will not run), a flag to force it to run
-* 			as queueable, a field to control dependencies (process A is dependent on process B to run, if process B does not run or 
-* 			has an exception in the code process A will not run) and in addition to all that this also has the capability to pass output from one process
-* 			to the next one within the same transaction.  processToSkip
+*           the apex class implementing IAsyncTriggerArc interface which is the code to execute (the process), 
+*           order of execution, a flag to make it active or not (if not active it will not run), a flag to force it to run
+*           as queueable, a field to control dependencies (process A is dependent on process B to run, if process B does not run or 
+*           has an exception in the code process A will not run) and in addition to all that this also has the capability to pass output from one process
+*           to the next one within the same transaction.  processToSkip
 *  
 * Test Classes: AsyncTriggerArcTest
 */
@@ -602,15 +602,17 @@ public class AsyncTriggerArc {
         }
     }
     
-    static void runFilterPattern(AsyncTriggerArcConfig config, boolean deletionContext, map < string, IAsyncTriggerArcFEA > feaInstances, List < AsyncTriggerArqSettings__c > chain) {
+    static void runFilterPattern(AsyncTriggerArcConfig config, boolean deletionContext, map < string, IAsyncTriggerArcFEA > feaInstances, List < AsyncTriggerArqSettings__c > chain, boolean fromAsync) {
         atarcDebug('Running first loop for FILTER pattern ');
         
         for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
             
             for (AsyncTriggerArqSettings__c setting: chain) {
+                   if(setting.isAsync__c == true && fromAsync != true) continue;
                 
-                if (feaInstances.containsKey(setting.name)) {
+                if (feaInstances.containsKey(setting.name) ) {
                     
+                            
                     IAsyncTriggerArcFEA feaInstance = feaInstances.get(setting.name);
                     
                     long startTime = system.datetime.now().millisecond();
@@ -694,12 +696,7 @@ public class AsyncTriggerArc {
                     }
                     
                 }
-                
-                
-                //if this is running from async context
-                //only one setting should be evaluated
-                if(setting.isAsync__c)
-                    break;
+               
             }
         }
         
@@ -736,10 +733,12 @@ public class AsyncTriggerArc {
             /*
 * BREAKING LOOP IF PREVIOUS PATTERN DIDN'T EXECUTED PROPERLY
 */ 
-            if( includePattern(PATTERN_FILTER, setting) &&  processesExecStatuses.get(setting.name).status != PROCESS_EXECUTED)
+            if(    setting.isAsync__c != true &&  includePattern(PATTERN_FILTER, setting) &&  processesExecStatuses.get(setting.name).status != PROCESS_EXECUTED)
+            {
+                atarcDebug('found to continue, this process is async');
                 continue; //if previous pattern executed without succeed then just break/
             
-            
+            }
             
             if (String.isNotEmpty(setting.DependsOn__c) &&
                 processesExecStatuses.containsKeY(setting.DependsOn__c) &&
@@ -808,7 +807,8 @@ public class AsyncTriggerArc {
         /*
 * FIRST LOOP TO DO FILTER PATTERN
 */
-        runFilterPattern(config, deletionContext, feaInstances, config.chain);
+        if(fromAsync != true)
+            runFilterPattern(config, deletionContext, feaInstances, config.chain, fromAsync);
         
         //if(config.triggerContext.isAfter)
         //system.assert(false, feaInstances.keyset());
@@ -1251,7 +1251,7 @@ public class AsyncTriggerArc {
     
     
     
-    public abstract class AsyncTriggerArcQueueableBase implements Queueable {
+    public abstract class AsyncTriggerArcQueueableBase implements Queueable  {
         public AsyncTriggerArcConfig Config {
             get;
             set;
@@ -1332,9 +1332,10 @@ public class AsyncTriggerArc {
             
             boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
             
+            if (includePattern(PATTERN_FILTER, currentSetting))
             runFilterPattern(config, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
                 currentSetting
-                    });
+                    }, fromAsync);
             
             
             //to fix specific issue
@@ -1350,7 +1351,13 @@ public class AsyncTriggerArc {
             
             object output = null;
             //run the class of the current setting
-            if (includePattern(PATTERN_EXECUTE, currentSetting))
+            if ( includePattern(PATTERN_EXECUTE, currentSetting)
+                && 
+                     ( ( includePattern(PATTERN_FILTER, currentSetting) &&  processesExecStatuses.get(currentSetting.name).status == PROCESS_EXECUTED)
+                        || !includePattern(PATTERN_FILTER, currentSetting) 
+                     )
+               
+                )
                 output = RunClass(instances,feaInstances, config, currentSetting);
             
             //store the output of the current invocation
@@ -1363,7 +1370,7 @@ public class AsyncTriggerArc {
             /*
 * SECOND LOOP TO DO ACTIONS
 */
-            
+            if (includePattern(PATTERN_ACTION, currentSetting))
             runActionPattern(config, true, false, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
                 currentSetting
                     });
@@ -1374,7 +1381,10 @@ public class AsyncTriggerArc {
             //chain operations
             //call the next operation according to the order.            
             if (DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
-                Eval(config, fromAsync, instances, feaInstances);
+            {//Eval(config, fromAsync, instances, feaInstances);                
+               List<AsyncTriggerArqSettings__c> dummyList = new List<AsyncTriggerArqSettings__c>();
+                runExecutePattern(config, fromAsync, instances, feaInstances, dummyList);
+            }
             
         }
     }
