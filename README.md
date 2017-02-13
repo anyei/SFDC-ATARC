@@ -74,7 +74,7 @@ In the code above, the constructor accept a bunch of parameters, mainly taken fr
 
 Now that we have our ATARC instance within our trigger, let's build processes to inject them into this trigger. Real apex classes should be created and of course implement a specific interface.
 
-### Create apex handler class that implements the interface AsyncTriggerArc.IAsyncTriggerArc (a.k.a atarc process)
+### Create apex handler class that implements either interfaces AsyncTriggerArc.IAsyncTriggerArc or AsyncTriggerArc.IAsyncTriggerArcFEA (a.k.a atarc process)
 
 This is how you should implement your helper class.
 
@@ -95,7 +95,7 @@ public class NameChanger implements AsyncTriggerArc.IAsyncTriggerArc {
 
 ```
 
-The above apex class is a simple implementation of the interface **AsyncTriggerArc.IAsyncTriggerArc**, this is a process for ATARC. It is mandatory to implement this interface and of course that you have to at least declare an empty place holder for the **filter**, **execute** and **action** methods. For now, just know the three of them plays their role but the execute we could say is the main one as it is the bulkified one. 
+The above apex class is a simple implementation of the interface **AsyncTriggerArc.IAsyncTriggerArc**, this is a process for ATARC. It is mandatory to implement either interface AsyncTriggerArc.IAsyncTriggerArc or AsyncTriggerArc.IAsyncTriggerArcFEA.
 
 The example above doesn't do much, it is just returning null value. The parameter **triggerContext** is provided by ATARC engine and contains a lot of trigger context variables such as isBefore, isAfter, isInsert etc.
 
