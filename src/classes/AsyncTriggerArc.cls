@@ -1300,7 +1300,6 @@ public class AsyncTriggerArc {
             
             if(instances.size() == 0 && feaInstances.size() == 0)
             {
-                system.assert(false, 'entro toma!');
                 o = RequestInstance(currentSetting.ApexHelperClassName__c, currentSetting.breakIfError__c);
                 if(o instanceof IAsyncTriggerArc){
                     instances =  new Map < string, IAsyncTriggerArc > {
