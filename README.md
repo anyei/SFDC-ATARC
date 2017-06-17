@@ -74,7 +74,7 @@ In the code above, the constructor accept a bunch of parameters, mainly taken fr
 
 Now that we have our ATARC instance within our trigger, let's build processes to inject them into this trigger. Apex classes should be created and of course extends from a base class.
 
-### Create apex handler class that extends either interfaces AsyncTriggerArc.AsyncTriggerArcProcessBase or AsyncTriggerArc.AsyncTriggerArcFEAProcessBase (a.k.a atarc process)
+### Create apex handler class that extends either base classes AsyncTriggerArc.AsyncTriggerArcProcessBase or AsyncTriggerArc.AsyncTriggerArcFEAProcessBase (a.k.a atarc process)
 
 This is how you should implement your class.
 
