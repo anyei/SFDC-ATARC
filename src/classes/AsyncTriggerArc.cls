@@ -2,7 +2,7 @@
 * Created By : Angel Robles (anyei)
 * Created Date: 1/6/2017
 * Purpose: In a nutshell, runs processes out of a custom setting. The custom setting has a field indicating
-*           the apex class implementing AsyncTriggerArcProcessBase interface which is the code to execute (the process), 
+*           the apex class implementing AsyncTriggerArcProcessBase or AsyncTriggerArcProcessFEABAse base class which is the code to execute (the process), 
 *           order of execution, a flag to make it active or not (if not active it will not run), a flag to force it to run
 *           as queueable, a field to control dependencies (process A is dependent on process B to run, if process B does not run or 
 *           has an exception in the code process A will not run) and in addition to all that this also has the capability to pass output from one process
@@ -128,7 +128,7 @@ public class AsyncTriggerArc {
     @TestVisible static boolean canSkip(boolean gskip, AsyncTriggerArqSettings__c setting, AsyncTriggerArcConfig config) {
         boolean skip = false;
         
-        if (gskip == true) return gskip;
+        //if (gskip == true) return gskip;
         
         for (string skipType: config.skips.keyset()) {
             if (skipType == CATEGORY_SKIP)
@@ -141,7 +141,7 @@ public class AsyncTriggerArc {
                 if (skip = config.skips.get(skipType).contains(setting.Name)) break;
             
         }
-        return skip;
+        return skip || gskip;
     }
     boolean SyncFirst() {
         return (
@@ -219,20 +219,23 @@ public class AsyncTriggerArc {
                     }
                     
                     /* RESPECT THE ORDER OF THE PROCESSES*/
-                } else if (respectOrder) {
-                    if (setting.IsActive__c && !canSkip(globalSkip, setting, globalConfig)) {
-                        
-                        //order logic.. as we dont have soql we must order by our self
-                        if (!orderLogicA.containsKey(setting.SObject__c))
-                            orderLogicA.put(setting.SObject__c, new Map < string, List < integer >> ());
-                        
-                        if (!orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c))
-                            orderLogicA.get(setting.SObject__c).put(setting.Event__c, new List < integer > ());
-                        
-                        orderLogicA.get(setting.SObject__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
-                        orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
-                    }
-                }
+                } 
+                
+                //DECOM : Synchronous will always run first, the order goes from sync to queueable
+                /*else if (respectOrder) {
+if (setting.IsActive__c && !canSkip(globalSkip, setting, globalConfig)) {
+
+//order logic.. as we dont have soql we must order by our self
+if (!orderLogicA.containsKey(setting.SObject__c))
+orderLogicA.put(setting.SObject__c, new Map < string, List < integer >> ());
+
+if (!orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c))
+orderLogicA.get(setting.SObject__c).put(setting.Event__c, new List < integer > ());
+
+orderLogicA.get(setting.SObject__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
+orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
+}
+}*/
                 
                 
             }
@@ -386,8 +389,6 @@ public class AsyncTriggerArc {
 * @method
 * START
 */
-    
-    
     public void Start() {
         
         atarcDebug('Start\nTransaction loop tracking:' + getTriggerTrack() +
@@ -414,7 +415,7 @@ public class AsyncTriggerArc {
                //propagation cancelation feature
                
                if (globalConfig.triggerContext.transactionLoop == null || getTriggerTrack() >= globalConfig.triggerContext.transactionLoop || globalConfig.triggerContext.transactionLoop == 0) {
-                   atarcDebug('TRANSACTION LOOP REACHED');
+                   atarcDebug('TRANSACTION LOOP REACHED '+globalConfig.triggerContext.transactionLoop);
                    return;
                }
                
@@ -446,7 +447,7 @@ public class AsyncTriggerArc {
     static map < string, AsyncTriggerArcProcessBase > getInstances(AsyncTriggerArcConfig config) {
         map < string, AsyncTriggerArcProcessBase > instances = new Map < string, AsyncTriggerArcProcessBase > ();
         
-        atarcDebug('Generating instances..');
+        atarcDebug('Generating instances..getInstances');
         for (AsyncTriggerArqSettings__c setting: config.chain) {
             //instantiate the objects
             //and invoke the filter method
@@ -455,7 +456,7 @@ public class AsyncTriggerArc {
             /**********************************/
             //simple skip functionality
             if (canSkip(config.skipEverything, setting, config)) {
-                atarcDebug('BYPASS FOUND');
+                atarcDebug('BYPASS FOUND getInstances '+setting.Name);
                 continue;
             }
             /***********************************/
@@ -471,18 +472,22 @@ public class AsyncTriggerArc {
     static map < string, AsyncTriggerArcFEAProcessBase > getFEAInstances(AsyncTriggerArcConfig config, set<string> standardInterface) {
         map < string, AsyncTriggerArcFEAProcessBase > instances = new Map < string, AsyncTriggerArcFEAProcessBase > ();
         
-        atarcDebug('Generating instances..');
+        atarcDebug('Generating instances..getFEAInstances');
         for (AsyncTriggerArqSettings__c setting: config.chain) {
             //instantiate the objects
             //and invoke the filter method
             
             /**********************************/
             //simple skip functionality
-            if (canSkip(config.skipEverything, setting, config) || standardInterface.contains(setting.name)) {
-                atarcDebug('BYPASS FOUND');
+            if (canSkip(config.skipEverything, setting, config)) {
+                atarcDebug('BYPASS FOUND getFEAInstances '+setting.Name);
                 continue;
             }
             /***********************************/
+            if(standardInterface.contains(setting.name)){
+                atarcDebug('Skipping.. It is an instance of AsyncTriggerArcProcessBase ' + setting.Name);
+                continue;
+            }
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
             AsyncTriggerArcFEAProcessBase instance = (o instanceof AsyncTriggerArcFEAProcessBase) ? (AsyncTriggerArcFEAProcessBase)o: null;
             
@@ -502,12 +507,17 @@ public class AsyncTriggerArc {
     static void runActionPattern(AsyncTriggerArcConfig config, boolean fromAsync, boolean breakTransaction, boolean deletionContext, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < AsyncTriggerArqSettings__c > chain) {
         if (breakTransaction != true) {
             atarcDebug('Running ACTION Pattern');
-            for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
+            if(feaInstances.size() == 0 ) atarcDebug('No fea instances found, action pattern will not run ');
+            
+            if(feaInstances.size() > 0){
+
+                long startTime = system.datetime.now().millisecond();
+
+            	for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
                 for (AsyncTriggerArqSettings__c setting: chain) {
                     if (feaInstances.containsKey(setting.name)) {
                         AsyncTriggerArcFEAProcessBase feaInstance = feaInstances.get(setting.name);
                         
-                        long startTime = system.datetime.now().millisecond();
                         
                         //configuring
                         config.triggerContext.debugMode = setting.debug__c;
@@ -533,7 +543,7 @@ public class AsyncTriggerArc {
                                 includePattern(PATTERN_ACTION, setting)
                                ) {
                                    
-                                   feaInstance.action((deletionContext == true ? record : (config.triggerContext.oldMap != null ? config.triggerContext.oldMap.get(record.id) : null)), (deletionContext == true ? null : record), config.triggerContext);
+                                   feaInstance.action((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
                                    
                                    long totalTime = system.datetime.now().millisecond() - startTime;
                                    
@@ -541,12 +551,13 @@ public class AsyncTriggerArc {
                                    
                                    UpdateProcessTime(config, setting, totalTime);
                                    
-                               } else if (String.isNotEmpty(setting.DependsOnError__c) &&
+                               } 
+                            else if (String.isNotEmpty(setting.DependsOnError__c) &&
                                           processesExecStatuses.containsKeY(setting.DependsOnError__c) &&
                                           processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED &&
                                           includePattern(PATTERN_ACTION, setting)) {
                                               
-                                              feaInstance.action((deletionContext == true ? record : (config.triggerContext.oldMap != null ? config.triggerContext.oldMap.get(record.id) : null)), (deletionContext == true ? null : record), config.triggerContext);
+                                              feaInstance.action((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
                                               
                                               long totalTime = system.datetime.now().millisecond() - startTime;
                                               
@@ -556,11 +567,12 @@ public class AsyncTriggerArc {
                                               
                                               
                                               
-                                          } else if (String.isBlank(setting.DependsOn__c) &&
+                                          } 
+                            else if (String.isBlank(setting.DependsOn__c) &&
                                                      String.isBlank(setting.DependsOnError__c) &&
                                                      includePattern(PATTERN_ACTION, setting)
                                                     ) {
-                                                        feaInstance.action((deletionContext == true ? record : (config.triggerContext.oldMap != null ? config.triggerContext.oldMap.get(record.id) : null)), (deletionContext == true ? null : record), config.triggerContext);
+                                                        feaInstance.action((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
                                                         
                                                         long totalTime = system.datetime.now().millisecond() - startTime;
                                                         
@@ -598,6 +610,8 @@ public class AsyncTriggerArc {
                         break;
                 }
             }
+            }
+            
             atarcDebug('Running ACTION Pattern COMPLETE');
         }
     }
@@ -605,185 +619,197 @@ public class AsyncTriggerArc {
     static void runFilterPattern(AsyncTriggerArcConfig config, boolean deletionContext, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < AsyncTriggerArqSettings__c > chain, boolean fromAsync) {
         atarcDebug('Running first loop for FILTER pattern ');
         
-        for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
-            
-            for (AsyncTriggerArqSettings__c setting: chain) {
-                   if(setting.isAsync__c == true && fromAsync != true) continue;
+        if(feaInstances.size() == 0) atarcDebug('No fea instances found, filter pattern will not run');
+        
+        //shall not run even a single line of code if no fea instances
+        if(feaInstances.size() > 0){
+
+            long startTime = system.datetime.now().millisecond();
+
+            for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
                 
-                if (feaInstances.containsKey(setting.name) ) {
+                for (AsyncTriggerArqSettings__c setting: chain) {
+                    if(setting.isAsync__c == true && fromAsync != true) continue;
                     
+                    if (feaInstances.containsKey(setting.name) ) {
+                        
+                        
+                        AsyncTriggerArcFEAProcessBase feaInstance = feaInstances.get(setting.name);
+                        
+                        
+                        //configuring
+                        config.triggerContext.debugMode = setting.debug__c;
+                        config.triggerContext.debugLevel = setting.debugLevel__c;
+                        config.triggerContext.processSucceeded = true;
+                        config.triggerContext.processName = setting.name;
+                        
+                        
+                        
+                        //invoking the "filter" method
+                        try {
                             
-                    AsyncTriggerArcFEAProcessBase feaInstance = feaInstances.get(setting.name);
-                    
-                    long startTime = system.datetime.now().millisecond();
-                    
-                    //configuring
-                    config.triggerContext.debugMode = setting.debug__c;
-                    config.triggerContext.debugLevel = setting.debugLevel__c;
-                    config.triggerContext.processSucceeded = true;
-                    config.triggerContext.processName = setting.name;
-                    
-                    
-                    
-                    //invoking the "filter" method
-                    try {
-                        
-                        
-                        if (String.isNotEmpty(setting.DependsOn__c) &&
-                            processesExecStatuses.containsKeY(setting.DependsOn__c) &&
-                            processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED &&
-                            includePattern(PATTERN_FILTER, setting)
-                           ) {
-                               
-                               feaInstance.filter((deletionContext == true ? record : (config.triggerContext.oldMap != null ? config.triggerContext.oldMap.get(record.id) : null)), (deletionContext == true ? null : record), config.triggerContext);
-                               
-                               long totalTime = system.datetime.now().millisecond() - startTime;
-                               
-                               UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED));
-                               
-                               UpdateProcessTime(config, setting, totalTime);
-                               
-                           } else if (String.isNotEmpty(setting.DependsOnError__c) &&
-                                      processesExecStatuses.containsKeY(setting.DependsOnError__c) &&
-                                      processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED &&
-                                      includePattern(PATTERN_FILTER, setting)) {
-                                          
-                                          feaInstance.filter((deletionContext == true ? record : (config.triggerContext.oldMap != null ? config.triggerContext.oldMap.get(record.id) : null)), (deletionContext == true ? null : record), config.triggerContext);
-                                          
-                                          long totalTime = system.datetime.now().millisecond() - startTime;
-                                          
-                                          UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED));
-                                          
-                                          UpdateProcessTime(config, setting, totalTime);
-                                          
-                                          
-                                          
-                                      } else if (String.isBlank(setting.DependsOn__c) &&
-                                                 String.isBlank(setting.DependsOnError__c) &&
-                                                 includePattern(PATTERN_FILTER, setting)
-                                                ) {
-                                                    feaInstance.filter((deletionContext == true ? record : (config.triggerContext.oldMap != null ? config.triggerContext.oldMap.get(record.id) : null)), (deletionContext == true ? null : record), config.triggerContext);
-                                                    
-                                                    long totalTime = system.datetime.now().millisecond() - startTime;
-                                                    
-                                                    UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED));
-                                                    
-                                                    UpdateProcessTime(config, setting, totalTime);
-                                                    
-                                                    
-                                                }
-                        
-                        
-                        
-                        
-                    } catch (Exception err) {
-                        
-                        long totalTime = system.datetime.now().millisecond() - startTime;
-                        
-                        UpdateStatus(config, setting, PROCESS_FAILED);
-                        UpdateProcessTime(config, setting, totalTime);
-                        config.triggerContext.processSucceeded = false;
-                        
-                        
-                        atarcDebug('EXCEPTION!!:\n' + err.getMessage());
-                        
-                        /**********************************/
-                        //break transaction if error feature
-                        if (setting.BreakIfError__c) {
-                            atarcDebug('breaking transaction');
-                            throw err;
+                            
+                            if (String.isNotEmpty(setting.DependsOn__c) &&
+                                processesExecStatuses.containsKeY(setting.DependsOn__c) &&
+                                processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED &&
+                                includePattern(PATTERN_FILTER, setting)
+                               ) {
+                                   
+                                   feaInstance.filter((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+                                   
+                                   long totalTime = system.datetime.now().millisecond() - startTime;
+                                   
+                                   UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED));
+                                   
+                                   UpdateProcessTime(config, setting, totalTime);
+                                   
+                               } 
+                            else if (String.isNotEmpty(setting.DependsOnError__c) &&
+                                          processesExecStatuses.containsKeY(setting.DependsOnError__c) &&
+                                          processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED &&
+                                          includePattern(PATTERN_FILTER, setting)) {
+                                              
+                                              feaInstance.filter((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+                                              
+                                              long totalTime = system.datetime.now().millisecond() - startTime;
+                                              
+                                              UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED));
+                                              
+                                              UpdateProcessTime(config, setting, totalTime);
+                                              
+                                              
+                                              
+                                          } 
+                            else if (String.isBlank(setting.DependsOn__c) &&
+                                                     String.isBlank(setting.DependsOnError__c) &&
+                                                     includePattern(PATTERN_FILTER, setting)
+                                                    ) {
+                                                        feaInstance.filter((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+                                                        
+                                                        long totalTime = system.datetime.now().millisecond() - startTime;
+                                                        
+                                                        UpdateStatus(config, setting, (config.triggerContext.processSucceeded == true ? PROCESS_EXECUTED : PROCESS_FAILED));
+                                                        
+            											UpdateProcessTime(config, setting, totalTime);
+                                                    }
+                            
+                            
+                            
+                            
+                        } catch (Exception err) {
+                            
+                            long totalTime = system.datetime.now().millisecond() - startTime;
+                            
+                            UpdateStatus(config, setting, PROCESS_FAILED);
+                            UpdateProcessTime(config, setting, totalTime);
+                            config.triggerContext.processSucceeded = false;
+                            
+                            
+                            atarcDebug('EXCEPTION!!:\n' + err.getMessage());
+                            
+                            /**********************************/
+                            //break transaction if error feature
+                            if (setting.BreakIfError__c) {
+                                atarcDebug('breaking transaction');
+                                throw err;
+                            }
                         }
+                        
                     }
                     
                 }
-               
-            }
-        }
-        
+            }            
+        } 
         atarcDebug('Running first loop for FILTER pattern COMPLETE');
     }
     
     static boolean runExecutePattern(AsyncTriggerArcConfig config, boolean fromAsync, map < string, AsyncTriggerArcProcessBase > instances,map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < AsyncTriggerArqSettings__c > syncProcessesToRunActionPattern) {
         boolean breakTransaction = false;
         atarcDebug('Running  EXECUTE Pattern');
-        while (config.chain.size() > 0) {
-            
-            atarcDebug('Pending processes size ' + config.chain.size());
-            
-            //"doing pop", returning and removing the next process to evaluate and execute
-            //this is key to get rid of the processed processes from the queue
-            AsyncTriggerArqSettings__c setting = config.chain.remove(0);
-            
-            atarcDebug('Evaluating process\nName:' + setting.Name + '\nApexClass:' + setting.ApexHelperClassName__c + '\nOrder:' + setting.Order__c + '\nIsAsync:' + setting.isAsync__c);
-            
-            /**********************************/
-            //simple skip functionality
-            if (canSkip(config.skipEverything, setting, config)) {
-                atarcDebug('BYPASS FOUND');
-                break;
-            }
-            /***********************************/
-            
-            //configuring
-            config.triggerContext.debugMode = setting.debug__c;
-            config.triggerContext.debugLevel = setting.debugLevel__c;
-            config.triggerContext.processSucceeded = true;
-            config.triggerContext.processName = setting.name;
-            
-            /*
+        
+        if(instances.size() == 0) atarcDebug('No instances found, execute pattern will not run .');
+        
+        if(instances.size() > 0){
+            while (config.chain.size() > 0) {
+                
+                atarcDebug('Pending processes size ' + config.chain.size());
+                
+                //"doing pop", returning and removing the next process to evaluate and execute
+                //this is key to get rid of the processed processes from the queue
+                AsyncTriggerArqSettings__c setting = config.chain.remove(0);
+                
+                atarcDebug('Evaluating process\nName:' + setting.Name + '\nApexClass:' + setting.ApexHelperClassName__c + '\nOrder:' + setting.Order__c + '\nIsAsync:' + setting.isAsync__c);
+                
+                /**********************************/
+                //simple skip functionality
+                if (canSkip(config.skipEverything, setting, config)) {
+                    atarcDebug('BYPASS FOUND execute '+setting.name);
+                    break;
+                }
+                /***********************************/
+                
+                //configuring
+                config.triggerContext.debugMode = setting.debug__c;
+                config.triggerContext.debugLevel = setting.debugLevel__c;
+                config.triggerContext.processSucceeded = true;
+                config.triggerContext.processName = setting.name;
+                
+                /*
 * BREAKING LOOP IF PREVIOUS PATTERN DIDN'T EXECUTED PROPERLY
 */ 
-            if(    setting.isAsync__c != true &&  includePattern(PATTERN_FILTER, setting) &&  processesExecStatuses.get(setting.name).status != PROCESS_EXECUTED)
-            {
-                atarcDebug('found to continue, this process is async');
-                continue; //if previous pattern executed without succeed then just break/
-            
-            }
-            
-            if (String.isNotEmpty(setting.DependsOn__c) &&
-                processesExecStatuses.containsKeY(setting.DependsOn__c) &&
-                processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED
-               ) {
-                   
-                   atarcDebug('Running with dependencies ');
-                   //processes with dependencies should execute only if dependency process executed successfully
-                   breakTransaction = Run(instances, feaInstances, config, setting, fromAsync);
-                   
-                   if (includePattern(PATTERN_ACTION, setting))
-                       syncProcessesToRunActionPattern.add(setting);
-                   
-               } else if (String.isNotEmpty(setting.DependsOnError__c) &&
-                          processesExecStatuses.containsKeY(setting.DependsOnError__c) &&
-                          processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED
-                         ) {
-                             
-                             //processes with dependencies should execute only if dependency process executed successfully
-                             breakTransaction = Run(instances, feaInstances, config, setting, fromAsync);
-                             
-                             if (includePattern(PATTERN_ACTION, setting))
-                                 syncProcessesToRunActionPattern.add(setting);
-                             
-                         } else if (String.isBlank(setting.DependsOn__c) &&
-                                    String.isBlank(setting.DependsOnError__c)
-                                   ) {
-                                       atarcDebug('running with no dependencies');
-                                       //processes with no dependencies should run
-                                       breakTransaction = Run(instances, feaInstances, config, setting, fromAsync);
-                                       
-                                       if (includePattern(PATTERN_ACTION, setting))
-                                           syncProcessesToRunActionPattern.add(setting);
-                                       
-                                   } else if (config.Chain.size() > 0) {
-                                       
-                                       //processes with dependencies but dependency didn't executed successfully should be skipped
-                                       //the next process in the list should be executed
-                                       continue;
-                                   }
-            
-            
-            //async transactions invokations should break this loop
-            if (breakTransaction) { //&& DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) ){                
-                break;
+                if(    setting.isAsync__c != true &&  includePattern(PATTERN_FILTER, setting) &&  processesExecStatuses.get(setting.name).status != PROCESS_EXECUTED)
+                {
+                    atarcDebug('breaking previous pattern did not executed well');
+                    continue; //if previous pattern executed without succeed then just break/
+                    
+                }
+                
+                if (String.isNotEmpty(setting.DependsOn__c) &&
+                    processesExecStatuses.containsKeY(setting.DependsOn__c) &&
+                    processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED
+                   ) {
+                       
+                       atarcDebug('Running with dependencies, depends on '+ setting.DependsOn__c);
+                       //processes with dependencies should execute only if dependency process executed successfully
+                       breakTransaction = Run(instances, feaInstances, config, setting, fromAsync);
+                       
+                       if (includePattern(PATTERN_ACTION, setting))
+                           syncProcessesToRunActionPattern.add(setting);
+                       
+                   } else if (String.isNotEmpty(setting.DependsOnError__c) &&
+                              processesExecStatuses.containsKeY(setting.DependsOnError__c) &&
+                              processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED
+                             ) {
+                                 
+                                 atarcDebug('Running with dependencies, depends on error '+ setting.DependsOnError__c);
+                                 //processes with dependencies should execute only if dependency process executed successfully
+                                 breakTransaction = Run(instances, feaInstances, config, setting, fromAsync);
+                                 
+                                 if (includePattern(PATTERN_ACTION, setting))
+                                     syncProcessesToRunActionPattern.add(setting);
+                                 
+                             } else if (String.isBlank(setting.DependsOn__c) &&
+                                        String.isBlank(setting.DependsOnError__c)
+                                       ) {
+                                           atarcDebug('running with no dependencies');
+                                           //processes with no dependencies should run
+                                           breakTransaction = Run(instances, feaInstances, config, setting, fromAsync);
+                                           
+                                           if (includePattern(PATTERN_ACTION, setting))
+                                               syncProcessesToRunActionPattern.add(setting);
+                                           
+                                       } else if (config.Chain.size() > 0) {
+                                           
+                                           //processes with dependencies but dependency didn't executed successfully should be skipped
+                                           //the next process in the list should be executed
+                                           continue;
+                                       }
+                
+                
+                //async transactions invokations should break this loop
+                if (breakTransaction) { //&& DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) ){                
+                    break;
+                }
             }
         }
         atarcDebug('Running EXECUTE pattern COMPLETE');
@@ -869,7 +895,8 @@ public class AsyncTriggerArc {
                 atarcDebug('Processes executed async');
                 
                 isAsync = true;
-            } else if (!setting.isAsync__c &&
+            } 
+        else if (!setting.isAsync__c &&
                        //if we want to respect the order of the processes that are not async
                        //but they are called after an async process
                        fromAsync &&
@@ -896,7 +923,8 @@ public class AsyncTriggerArc {
                            atarcDebug('Processes executed async so that sync processes are executed');
                            isAsync = true;
                            
-                       } else if (includePattern(PATTERN_EXECUTE, setting)) {
+                       } 
+        else if (includePattern(PATTERN_EXECUTE, setting)) {
                            
                            atarcDebug('Running...');
                            
@@ -1219,7 +1247,7 @@ public class AsyncTriggerArc {
         /*
 * General execution
 */
-        public abstract object execute(AsyncTriggerArcContext triggerContext);
+        @testvisible protected abstract object execute(AsyncTriggerArcContext triggerContext);
         
         
     }
@@ -1234,22 +1262,26 @@ public class AsyncTriggerArc {
         /*
 * First loop of the execution. Only filtering is valid in this loop.
 */
-        public abstract void filter(sObject newRecord, sObject oldRecord, AsyncTriggerArcContext triggerContext);
+        @testvisible protected virtual void filter(sObject newRecord, sObject oldRecord, AsyncTriggerArcContext triggerContext){
+            
+        }
         
         /*
 * General execution
 */
-        public abstract object execute(AsyncTriggerArcContext triggerContext);
+        @testvisible protected virtual object execute(AsyncTriggerArcContext triggerContext){
+            return null;
+        }
         
         /*
 * Second loop of the execution. After having all the needed data perfor any operation in here
 * not related to field updates or validations throwouts.
 */
-        public abstract void action(SObject newRecord, sObject oldRecord, AsyncTriggerArcContext triggerContext);
+        @testVisible protected virtual void action(SObject newRecord, sObject oldRecord, AsyncTriggerArcContext triggerContext){
+            
+        }
         
     }
-    
-    
     
     public abstract class AsyncTriggerArcQueueableBase implements Queueable  {
         public AsyncTriggerArcConfig Config {
@@ -1307,12 +1339,12 @@ public class AsyncTriggerArc {
                         currentSetting.Name => (AsyncTriggerArcProcessBase)o 
                             };
                                 }
-        
-               if(o instanceof AsyncTriggerArcFEAProcessBase){
+                
+                if(o instanceof AsyncTriggerArcFEAProcessBase){
                     feaInstances =  new Map < string, AsyncTriggerArcFEAProcessBase > {
-                     currentSetting.Name => (AsyncTriggerArcFEAProcessBase)o
-                    };
-               }
+                        currentSetting.Name => (AsyncTriggerArcFEAProcessBase)o
+                            };
+                                }
                 
                 
             }
@@ -1332,9 +1364,9 @@ public class AsyncTriggerArc {
             boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
             
             if (includePattern(PATTERN_FILTER, currentSetting))
-            runFilterPattern(config, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
-                currentSetting
-                    }, fromAsync);
+                runFilterPattern(config, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
+                    currentSetting
+                        }, fromAsync);
             
             
             //to fix specific issue
@@ -1352,11 +1384,11 @@ public class AsyncTriggerArc {
             //run the class of the current setting
             if ( includePattern(PATTERN_EXECUTE, currentSetting)
                 && 
-                     ( ( includePattern(PATTERN_FILTER, currentSetting) &&  processesExecStatuses.get(currentSetting.name).status == PROCESS_EXECUTED)
-                        || !includePattern(PATTERN_FILTER, currentSetting) 
-                     )
-               
+                ( ( includePattern(PATTERN_FILTER, currentSetting) &&  processesExecStatuses.get(currentSetting.name).status == PROCESS_EXECUTED)
+                 || !includePattern(PATTERN_FILTER, currentSetting) 
                 )
+                
+               )
                 output = RunClass(instances,feaInstances, config, currentSetting);
             
             //store the output of the current invocation
@@ -1370,9 +1402,9 @@ public class AsyncTriggerArc {
 * SECOND LOOP TO DO ACTIONS
 */
             if (includePattern(PATTERN_ACTION, currentSetting))
-            runActionPattern(config, true, false, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
-                currentSetting
-                    });
+                runActionPattern(config, true, false, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
+                    currentSetting
+                        });
             
             
             
@@ -1381,7 +1413,7 @@ public class AsyncTriggerArc {
             //call the next operation according to the order.            
             if (DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
             {//Eval(config, fromAsync, instances, feaInstances);                
-               List<AsyncTriggerArqSettings__c> dummyList = new List<AsyncTriggerArqSettings__c>();
+                List<AsyncTriggerArqSettings__c> dummyList = new List<AsyncTriggerArqSettings__c>();
                 runExecutePattern(config, fromAsync, instances, feaInstances, dummyList);
             }
             
