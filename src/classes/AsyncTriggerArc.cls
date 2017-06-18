@@ -22,7 +22,7 @@ public class AsyncTriggerArc {
     
     //possible values listed here NONE, ERROR, WARN, INFO, DEBUG,
     //FINE, FINER, FINEST
-    public static final string DEFAULT_LOGGIN_LEVEL = 'NONE';
+    public static final string DEFAULT_LOGGIN_LEVEL =  'DEBUG';
     public static final string CATEGORY_SKIP = 'category';
     public static final string OBJECT_SKIP = 'object';
     public static final string EVENT_SKIP = 'event';
@@ -33,10 +33,6 @@ public class AsyncTriggerArc {
     //possible values QUEUE, FULLASYNC
     public static final string DEFAULT_OPERATION_STRATEGY_MODE = 'QUEUE_SYNCHRONOUS_PRIORITY';
     public static final string OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER = 'QUEUE_RESPECT_ORDER';
-    public static final string PATTERN_ACTION = 'ACTION';
-    public static final string PATTERN_EXECUTE = 'EXECUTE';
-    public static final string PATTERN_FILTER = 'FILTER';
-    public static final string PATTERN_ALL = 'ALL';
     
     //public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC = 'FULLASYNC_RESPECT_ORDER';
     //public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY = 'FULLASYNC_SYNCHRONOUS_PRIORITY';
@@ -93,7 +89,8 @@ public class AsyncTriggerArc {
                 'ERROR' => LoggingLevel.ERROR,
                 'WARN' => LoggingLevel.WARN,
                 'INFO' => LoggingLevel.INFO,
-                'DEBUG' => LoggingLevel.FINE,
+                'DEBUG' => LoggingLevel.DEBUG,
+                'FINE' => LoggingLevel.FINE,
                 'FINER' => LoggingLevel.FINER,
                 'FINEST' => LoggingLevel.FINEST
                 
@@ -546,7 +543,7 @@ continue; //if previous pattern executed without succeed then just break/
 includePattern(PATTERN_ACTION, setting)*/
                                    ) {
                                        
-                                       feaInstance.action((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+                                       feaInstance.action((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
                                        
                                        long totalTime = system.datetime.now().millisecond() - startTime;
                                        
@@ -560,7 +557,7 @@ includePattern(PATTERN_ACTION, setting)*/
                                          processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED /*&&
 includePattern(PATTERN_ACTION, setting)*/) {
     
-    feaInstance.action((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+    feaInstance.action((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
     
     long totalTime = system.datetime.now().millisecond() - startTime;
     
@@ -576,7 +573,7 @@ includePattern(PATTERN_ACTION, setting)*/) {
                                          String.isBlank(setting.DependsOnError__c) /*&&
 includePattern(PATTERN_ACTION, setting)*/
                                         ) {
-                                            feaInstance.action((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+                                            feaInstance.action((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
                                             
                                             long totalTime = system.datetime.now().millisecond() - startTime;
                                             
@@ -658,7 +655,7 @@ includePattern(PATTERN_ACTION, setting)*/
 includePattern(PATTERN_FILTER, setting)*/
                                ) {
                                    
-                                   feaInstance.filter((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+                                   feaInstance.filter((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
                                    
                                    long totalTime = system.datetime.now().millisecond() - startTime;
                                    
@@ -672,7 +669,7 @@ includePattern(PATTERN_FILTER, setting)*/
                                      processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED /*&&
 includePattern(PATTERN_FILTER, setting)*/) {
     
-    feaInstance.filter((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+    feaInstance.filter((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
     
     long totalTime = system.datetime.now().millisecond() - startTime;
     
@@ -690,7 +687,7 @@ includePattern(PATTERN_FILTER, setting)*/) {
                                      String.isBlank(setting.DependsOnError__c) /*&&
 includePattern(PATTERN_FILTER, setting)*/
                                     ) {
-                                        feaInstance.filter((deletionContext != true ? record : null), (deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record), config.triggerContext);
+                                        feaInstance.filter((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
                                         
                                         long totalTime = system.datetime.now().millisecond() - startTime;
                                         
