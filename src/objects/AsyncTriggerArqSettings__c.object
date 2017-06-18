@@ -124,18 +124,7 @@
         <label>isAsync</label>
         <trackTrending>false</trackTrending>
         <type>Checkbox</type>
-    </fields>
-    <fields>
-        <fullName>pattern__c</fullName>
-        <defaultValue>&quot;EXECUTE&quot;</defaultValue>
-        <externalId>false</externalId>
-        <label>pattern</label>
-        <length>255</length>
-        <required>true</required>
-        <trackTrending>false</trackTrending>
-        <type>Text</type>
-        <unique>false</unique>
-    </fields>
+    </fields>    
     <label>ATARC Process Settings</label>
     <visibility>Public</visibility>
 </CustomObject>
