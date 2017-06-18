@@ -131,9 +131,9 @@ In the example above our handler apex class is ChangeNameProcess and the trigger
 
 So what we need is a Custom Setting entry, you should have the custom setting called **ATARC Process Settings** within this repository. This is how the entry should look:
 
-| Name                      | ApexHelperClassName | SObject     | Event        | IsActive | IsAsync | Order | DependsOnSuccess | DependsOnError | Debug | DebugLevel | breakIfError | pattern |
-|---------------------------|---------------------|-------------|--------------|----------|---------|-------|------------------|----------------|-------|------------|--------------|---------|
-| NameChanger1.0            | ChangeNameProcess         | Opportunity | BeforeInsert | true     | false   | 1     |                  |                | true  | DEBUG      | false        | EXECUTE |
+| Name                      | ApexHelperClassName | SObject     | Event        | IsActive | IsAsync | Order | DependsOnSuccess | DependsOnError | Debug | DebugLevel | breakIfError |
+|---------------------------|---------------------|-------------|--------------|----------|---------|-------|------------------|----------------|-------|------------|--------------|
+| NameChanger1.0            | ChangeNameProcess         | Opportunity | BeforeInsert | true     | false   | 1     |                  |                | true  | DEBUG      | false        |
 
 So, the **name** field is just an identifier, you can use this field to give a name to the process, the rest of the fields are sort of self explanatories but i'll include a section dedicated to the meaning of each of these fields later. For now just take a good look at this table.
 
