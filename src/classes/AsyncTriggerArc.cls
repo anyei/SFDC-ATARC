@@ -34,9 +34,6 @@ public class AsyncTriggerArc {
     public static final string DEFAULT_OPERATION_STRATEGY_MODE = 'QUEUE_SYNCHRONOUS_PRIORITY';
     public static final string OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER = 'QUEUE_RESPECT_ORDER';
     
-    //public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC = 'FULLASYNC_RESPECT_ORDER';
-    //public static final string OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY = 'FULLASYNC_SYNCHRONOUS_PRIORITY';
-    
     //global maps, lists, config
     @TestVisible static Map < string, map < string, AsyncTriggerArqSettings__c[] >> arqSettings;
     
@@ -47,6 +44,8 @@ public class AsyncTriggerArc {
     
     @TestVisible static AsyncTriggerArcConfig currentGlobalConfig;
     
+    @testVisible static Map < string, set < string > > skips;
+    
     @TestVisible static Map < string, AsyncTriggerArcProcessInfo > processesExecStatuses;
     
     @testVisible static Map < string, object > customData;
@@ -54,10 +53,6 @@ public class AsyncTriggerArc {
     @TestVisible static Map < string, Map < string, integer >> triggerExecTrack;
     
     @TestVisible static Map < string, System.LoggingLevel > logginLevelMap;
-    
-    //static Map < string, AsyncTriggerArqModeSettings__c > objectProcessingModes;
-    
-    // @TestVisible static integer mainQueuableUsedPool;
     
     static boolean orderProcessed;
     static boolean runningAsyncContext;
@@ -95,6 +90,12 @@ public class AsyncTriggerArc {
                 'FINEST' => LoggingLevel.FINEST
                 
                 };
+         skips = new Map < string, set < string >> {
+                CATEGORY_SKIP => new set < string > (),
+                    OBJECT_SKIP => new set < string > (),
+                    EVENT_SKIP => new set < string > (),
+                    PROCESS_SKIP => new set < string > ()
+                    };
                     
                     orderProcessed = false;
         
@@ -103,8 +104,6 @@ public class AsyncTriggerArc {
         globalTransactionLoop = 1;
         
         globalStrategyMode = DEFAULT_OPERATION_STRATEGY_MODE; //OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER; // DEFAULT_OPERATION_STRATEGY_MODE;
-        
-        //objectProcessingModes = AsyncTriggerArqModeSettings__c.getAll();
         
         runningAsyncContext = false;
         
@@ -122,24 +121,25 @@ public class AsyncTriggerArc {
         return newInstance;
     }
     
-    @TestVisible static boolean canSkip(boolean gskip, AsyncTriggerArqSettings__c setting, AsyncTriggerArcConfig config) {
+    @TestVisible static boolean canSkip(boolean gskip, AsyncTriggerArqSettings__c setting) {
         boolean skip = false;
         
         //if (gskip == true) return gskip;
         
-        for (string skipType: config.skips.keyset()) {
+        for (string skipType: skips.keyset()) {
             if (skipType == CATEGORY_SKIP)
-                if (skip = config.skips.get(skipType).contains(setting.Category__c)) break;
+                if (skip = skips.get(skipType).contains(setting.Category__c)) break;
             if (skipType == OBJECT_SKIP)
-                if (skip = config.skips.get(skipType).contains(setting.SObject__c)) break;
+                if (skip = skips.get(skipType).contains(setting.SObject__c)) break;
             if (skipType == EVENT_SKIP)
-                if (skip = config.skips.get(skipType).contains(setting.Event__c)) break;
+                if (skip = skips.get(skipType).contains(setting.Event__c)) break;
             if (skipType == PROCESS_SKIP)
-                if (skip = config.skips.get(skipType).contains(setting.Name)) break;
+                if (skip = skips.get(skipType).contains(setting.Name)) break;
             
         }
         return skip || gskip;
     }
+    
     boolean SyncFirst() {
         return (
             DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(globalConfig.strategyMode)
@@ -186,7 +186,7 @@ public class AsyncTriggerArc {
                     /*
 * All non async processes are executed in the first after call in the transaction transaction
 */
-                    if (setting.IsActive__c && !canSkip(globalSkip, setting, globalConfig) && setting.isAsync__c) {
+                    if (setting.IsActive__c && !canSkip(globalSkip, setting) && setting.isAsync__c) {
                         
                         //order logic.. as we dont have soql we must order by our self
                         if (!orderLogicA.containsKey(setting.SObject__c))
@@ -200,7 +200,7 @@ public class AsyncTriggerArc {
                         
                         
                         
-                    } else if (setting.IsActive__c && !canSkip(globalSkip, setting, globalConfig) && setting.isAsync__c != true) {
+                    } else if (setting.IsActive__c && !canSkip(globalSkip, setting) && setting.isAsync__c != true) {
                         
                         //order logic.. as we dont have soql we must order by our self
                         if (!orderLogicS.containsKey(setting.SObject__c))
@@ -238,7 +238,7 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
             }
             
             for (AsyncTriggerArqSettings__c setting: settings) {
-                if (setting.IsActive__c && !canSkip(globalSkip, setting, globalConfig)) {
+                if (setting.IsActive__c && !canSkip(globalSkip, setting)) {
                     
                     if (firstTime)
                         processesExecStatuses.put(setting.name, new AsyncTriggerArcProcessInfo());
@@ -368,20 +368,6 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
     }
     
     
-    public AsyncTriggerArc bypass(string skipType, string skipValue) {
-        if (globalCOnfig.skips.containsKey(skipType)) globalCOnfig.skips.get(skipType).add(skipValue);
-        return this;
-    }
-    
-    /*
-* @method
-* REMOVESKIP
-*/
-    public AsyncTriggerArc clearBypass(string skipType, string skipValue) {
-        if (globalCOnfig.skips.containsKey(skipType)) globalCOnfig.skips.remove(skipValue);
-        return this;
-    }
-    
     /*
 * @method
 * START
@@ -452,7 +438,7 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
             
             /**********************************/
             //simple skip functionality
-            if (canSkip(config.skipEverything, setting, config)) {
+            if (canSkip(config.skipEverything, setting)) {
                 atarcDebug('BYPASS FOUND getInstances '+setting.Name);
                 continue;
             }
@@ -476,7 +462,7 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
             
             /**********************************/
             //simple skip functionality
-            if (canSkip(config.skipEverything, setting, config)) {
+            if (canSkip(config.skipEverything, setting)) {
                 atarcDebug('BYPASS FOUND getFEAInstances '+setting.Name);
                 continue;
             }
@@ -755,7 +741,7 @@ includePattern(PATTERN_FILTER, setting)*/
                 
                 /**********************************/
                 //simple skip functionality
-                if (canSkip(config.skipEverything, setting, config)) {
+                if (canSkip(config.skipEverything, setting)) {
                     atarcDebug('BYPASS FOUND execute '+setting.name);
                     break;
                 }
@@ -1089,33 +1075,7 @@ continue; //if previous pattern executed without succeed then just break/
         public AsyncTriggerArcContext triggerContext {
             get;
             set;
-        }
-        public set < string > processToSkip {
-            get;
-            set;
-        }
-        public set < string > objectToSkip {
-            get;
-            set;
-        }
-        public set < string > triggerSkip {
-            get;
-            set;
-        }
-        public set < string > eventSkip {
-            get;
-            set;
-        }
-        public set < string > categorySkip {
-            get;
-            set;
-        }
-        
-        public Map < string, set < string > > skips {
-            get;
-            set;
-        }
-        
+        }       
         public boolean skipEverything {
             get;
             set;
@@ -1127,18 +1087,8 @@ continue; //if previous pattern executed without succeed then just break/
         
         public AsyncTriggerArcConfig() {
             
-            triggerContext = new AsyncTriggerArcContext();
-            processToSkip = new set < string > ();
-            objectToSkip = new set < string > ();
-            triggerSkip = new set < string > ();
-            eventSkip = new set < string > ();
-            categorySkip = new set < string > ();
-            skips = new Map < string, set < string >> {
-                CATEGORY_SKIP => new set < string > (),
-                    OBJECT_SKIP => new set < string > (),
-                    EVENT_SKIP => new set < string > (),
-                    PROCESS_SKIP => new set < string > ()
-                    };
+            triggerContext = new AsyncTriggerArcContext();           
+            
                         skipEverything = false;
             
         }
@@ -1232,6 +1182,19 @@ continue; //if previous pattern executed without succeed then just break/
         public void debug(object msg) {
             AsyncTriggerArc.debug(processName, debugMode, debugLevel, msg != null ? string.valueof(msg) : '');
         }
+         public AsyncTriggerArcContext bypass(string skipType, string skipValue) {
+                if (skips.containsKey(skipType)) skips.get(skipType).add(skipValue);
+                return this;
+            }
+            
+            /*
+        * @method
+        * REMOVESKIP
+        */
+            public AsyncTriggerArcContext clearBypass(string skipType, string skipValue) {
+                if (skips.containsKey(skipType)) skips.remove(skipValue);
+                return this;
+            }
     }
     
     
