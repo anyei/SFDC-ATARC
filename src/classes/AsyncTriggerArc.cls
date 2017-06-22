@@ -865,7 +865,7 @@ continue; //if previous pattern executed without succeed then just break/
                 isAsync = true;
             } 
          
-        else if(!setting.isAsync__c) /* if (includePattern(PATTERN_EXECUTE, setting))*/ {
+        else  /* if (includePattern(PATTERN_EXECUTE, setting))*/ {
             
             atarcDebug('Running...');
             
@@ -1210,7 +1210,7 @@ continue; //if previous pattern executed without succeed then just break/
         
     }
     
-    public abstract class AsyncTriggerArcQueueableBase implements Queueable  {
+    public abstract class AsyncTriggerArcQueueableBase implements Queueable, Database.AllowsCallouts  {
         public AsyncTriggerArcConfig Config {
             get;
             set;
@@ -1288,7 +1288,7 @@ continue; //if previous pattern executed without succeed then just break/
             //to overcome sfdc limit 
             //(only one queueable can be called from within a queueable so any dlm inside the implementation 
             //of the this context will be executed within this transaction unfortunately)
-            runningAsyncContext = true;
+            runningAsyncContext = false;
             
             //tracking of the executed processes so far
             processesExecStatuses = pstatuses;
