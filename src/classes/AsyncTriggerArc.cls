@@ -30,10 +30,6 @@ public class AsyncTriggerArc {
     public static final string FRAMEWORK_NAME = 'ATARC';
     public static final integer GOVERNOR_LIMITS_QUEUEABLE = 50;
     
-    //possible values QUEUE, FULLASYNC
-    public static final string DEFAULT_OPERATION_STRATEGY_MODE = 'QUEUE_SYNCHRONOUS_PRIORITY';
-    public static final string OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER = 'QUEUE_RESPECT_ORDER';
-    
     //global maps, lists, config
     @TestVisible static Map < string, map < string, AsyncTriggerArqSettings__c[] >> arqSettings;
     
@@ -59,7 +55,6 @@ public class AsyncTriggerArc {
     public static boolean globalSkip;
     public static integer globalTransactionLoop;
     public static boolean globalDebugMode = true;
-    public static string globalStrategyMode;
     
     
     /****************/
@@ -101,9 +96,7 @@ public class AsyncTriggerArc {
         
         globalSkip = false;
         
-        globalTransactionLoop = 1;
-        
-        globalStrategyMode = DEFAULT_OPERATION_STRATEGY_MODE; //OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER; // DEFAULT_OPERATION_STRATEGY_MODE;
+        globalTransactionLoop = 1;        
         
         runningAsyncContext = false;
         
@@ -140,19 +133,15 @@ public class AsyncTriggerArc {
         return skip || gskip;
     }
     
+    //it will be always synchronous first
     boolean SyncFirst() {
-        return (
-            DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(globalConfig.strategyMode)
-            //OPERATION_STRATEGY_MODE_FULL_ASYNC_SYNC_PRIORITY.equalsIgnoreCase(globalConfig.strategyMode) 
-        );
+        return true;
         
     }
     
+    //TODO: DECOM
     boolean respectOrder() {
-        return (
-            OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(globalConfig.strategyMode)
-            // OPERATION_STRATEGY_MODE_FULL_ASYNC.equalsIgnoreCase(globalConfig.strategyMode)
-        );
+        return false;
     }
     /*
 * @method
@@ -322,10 +311,7 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
         globalConfig.triggerContext.newMap = newMap;
         globalConfig.triggerContext.transactionLoop = globalTransactionLoop;
         globalConfig.skipEverything = globalSkip;
-        
-        //globalConfig.strategyMode = (objectProcessingModes.containsKey(sObjectName) ? objectProcessingModes.get(sObjectName).Processing_Mode__c : globalStrategyMode);
-        globalConfig.strategyMode = globalStrategyMode;
-        
+              
         //the chain of process to execute should be reset every time 
         //a trigger is executed
         globalConfig.Chain = new List < AsyncTriggerArqSettings__c > ();
@@ -380,8 +366,7 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
                    '\nRunningOutOfAnAsyncProcess:' + runningAsyncContext +
                    '\nglobalSkip:' + globalSkip +
                    '\nglobalTransactionLoop:' + globalTransactionLoop +
-                   '\nglobalDebugMode:' + globalDebugMode +
-                   '\nglobalStrategyMode:' + globalStrategyMode);
+                   '\nglobalDebugMode:' + globalDebugMode  );
         
         
         /*********************************/
@@ -423,8 +408,7 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
                    '\nRunningOutOfAnAsyncProcess:' + runningAsyncContext +
                    '\nglobalSkip:' + globalSkip +
                    '\nglobalTransactionLoop:' + globalTransactionLoop +
-                   '\nglobalDebugMode:' + globalDebugMode +
-                   '\nglobalStrategyMode:' + globalStrategyMode);
+                   '\nglobalDebugMode:' + globalDebugMode );
     }
     
     static map < string, AsyncTriggerArcProcessBase > getInstances(AsyncTriggerArcConfig config) {
@@ -480,12 +464,6 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
         
         return instances;
     }
-    
-    /*static boolean includePattern(string pattern, AsyncTriggerArqSettings__c setting) {
-set < string > patterns = new set < string > ((setting != null && setting.pattern__c != null ? setting.pattern__c.split('\\|') : null));
-
-return ((PATTERN_ALL.containsIgnoreCase(setting.pattern__c) || patterns.contains(pattern)));
-}*/
     
     static void runActionPattern(AsyncTriggerArcConfig config, boolean fromAsync, boolean breakTransaction, boolean deletionContext, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < AsyncTriggerArqSettings__c > chain) {
         if (breakTransaction != true) {
@@ -737,7 +715,7 @@ includePattern(PATTERN_FILTER, setting)*/
                 
                   config.triggerContext.processSucceeded = !feainstances.containsKey(setting.name) ? true : processesExecStatuses.get(setting.name).status ==PROCESS_EXECUTED;
                
-                atarcDebug('Evaluating process\nName:' + setting.Name + '\nApexClass:' + setting.ApexHelperClassName__c + '\nOrder:' + setting.Order__c + '\nIsAsync:' + setting.isAsync__c);
+                atarcDebug('Evaluating process\nName:' + setting.Name + '\nApexClass:' + setting.ApexHelperClassName__c + '\nOrder:' + setting.Order__c + '\nIsAsync:' + setting.isAsync__c+'\nDebug:'+setting.debug__c);
                 
                 /**********************************/
                 //simple skip functionality
@@ -879,6 +857,7 @@ continue; //if previous pattern executed without succeed then just break/
                 asyncWorker.pStatuses = processesExecStatuses;
                 asyncWorker.fromAsync = true;
                 asyncWorker.pCustomData =  customData;
+                asyncWorker.pSkips = skips;
                 asyncWorker.instances = instances;  //(instances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcProcessBase > { setting.name => instances.get(setting.name)} : new Map<string,AsyncTriggerArcProcessBase>() );
                 asyncWorker.feaInstances = feaInstances; //(feaInstances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcFEAProcessBase > { setting.name => feaInstances.get(setting.name)} : new Map<string,AsyncTriggerArcFEAProcessBase>() );   
                 //asyncWorker.qpool = mainQueuableUsedPool;
@@ -889,35 +868,8 @@ continue; //if previous pattern executed without succeed then just break/
                 
                 isAsync = true;
             } 
-        else if (!setting.isAsync__c &&
-                 //if we want to respect the order of the processes that are not async
-                 //but they are called after an async process
-                 fromAsync &&
-                 !Test.isRunningTest()) {
-                     
-                     atarcDebug('Synchronous from Async running..');
-                     
-                     /***************************/
-                     //synchronous processes executed from within async transaction should have their own thread
-                     //queuable to start a fresh transaction when a synchronous transactions needs to run after
-                     //an async transaction
-                     AsyncTriggerArcSynchronousProcess asyncWorker = new AsyncTriggerArcSynchronousProcess();
-                     asyncWorker.currentSetting = setting;
-                     asyncWorker.config = config;
-                     asyncWorker.pStatuses = processesExecStatuses;
-                     asyncWorker.fromAsync = true;
-                     asyncWorker.pCustomData =  customData;
-                     asyncWorker.instances = instances;// (instances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcProcessBase > { setting.name => instances.get(setting.name)} : new Map<string, AsyncTriggerArcProcessBase>());
-                     asyncWorker.feaInstances = feaInstances; //  (feaInstances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcFEAProcessBase > { setting.name => feaInstances.get(setting.name)} : new Map<string,AsyncTriggerArcFEAProcessBase>() );   
-                     //asyncWorker.qpool = mainQueuableUsedPool;
-                     //(config, setting, processesExecStatuses);
-                     system.enqueueJob(asyncWorker);
-                     
-                     atarcDebug('Processes executed async so that sync processes are executed');
-                     isAsync = true;
-                     
-                 } 
-        else/* if (includePattern(PATTERN_EXECUTE, setting))*/ {
+         
+        else if(!setting.isAsync__c) /* if (includePattern(PATTERN_EXECUTE, setting))*/ {
             
             atarcDebug('Running...');
             
@@ -1079,11 +1031,7 @@ continue; //if previous pattern executed without succeed then just break/
         public boolean skipEverything {
             get;
             set;
-        }
-        public string strategyMode {
-            get;
-            set;
-        }
+        }        
         
         public AsyncTriggerArcConfig() {
             
@@ -1201,16 +1149,6 @@ continue; //if previous pattern executed without succeed then just break/
     public class AsyncTriggerArcQueueable extends AsyncTriggerArcQueueableBase {}
     
     /*
-* Queueable to run when synchronous execution follow an async execution
-* note: because of how apex test engine works, this queuable is not executed
-* from unit testing (test engine does not like to run two queueable jobs in chain)
-*/
-    class AsyncTriggerArcSynchronousProcess extends AsyncTriggerArcQueueableBase {
-        
-    }
-    
-    
-    /*
 * General Interface
 * Helper classes shall implement this interface
 */
@@ -1219,7 +1157,24 @@ continue; //if previous pattern executed without succeed then just break/
         /*
 * General execution
 */
-        @testvisible protected abstract object execute(AsyncTriggerArcContext triggerContext);
+         @testvisible protected virtual void filter(sObject newRecord, sObject oldRecord, AsyncTriggerArcContext triggerContext){
+            
+        }
+        
+        /*
+* General execution
+*/
+        @testvisible protected virtual object execute(AsyncTriggerArcContext triggerContext){
+            return null;
+        }
+        
+        /*
+* Second loop of the execution. After having all the needed data perfor any operation in here
+* not related to field updates or validations throwouts.
+*/
+        @testVisible protected virtual void action(SObject newRecord, sObject oldRecord, AsyncTriggerArcContext triggerContext){
+            
+        }
         
         
     }
@@ -1294,8 +1249,13 @@ continue; //if previous pattern executed without succeed then just break/
             set;
         }
         
+        public Map < string, set < string > > pSkips {
+            get;
+            set;
+        }
+        
         public virtual void execute(QueueableContext context) {
-            atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg );
+            atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg + '\n'+currentSetting.name );
             
             instances = instances.containsKey(currentSetting.name) ? instances : new Map<string,AsyncTriggerArcProcessBase>() ; 
             feaInstances = feaInstances.containsKey(currentSetting.name) ? feaInstances : new Map<string, AsyncTriggerArcFEAProcessBase>() ;
@@ -1333,6 +1293,8 @@ continue; //if previous pattern executed without succeed then just break/
             //tracking of the executed processes so far
             processesExecStatuses = pstatuses;
             
+            skips = pSkips;
+            
             boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
             
             if (feaInstances.containsKey(currentSetting.name))//(includePattern(PATTERN_FILTER, currentSetting))
@@ -1351,7 +1313,7 @@ continue; //if previous pattern executed without succeed then just break/
             //assigning the config to the globalConfig will allow unit test context
             //to have the config data
             //globalConfig = config;
-            
+            atarcDebug('instances on async '+instances + ' '+feaInstances);
             object output = RunClass(instances,feaInstances, config, currentSetting);
             //run the class of the current setting
             /*if ( includePattern(PATTERN_EXECUTE, currentSetting)
@@ -1383,11 +1345,8 @@ output = RunClass(instances,feaInstances, config, currentSetting);*/
             
             //chain operations
             //call the next operation according to the order.            
-            if (DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) || OPERATION_STRATEGY_MODE_QUEUE_RESPECT_ORDER.equalsIgnoreCase(config.strategyMode)) //if strategy mode is QUEUE  then we expect more processes could run after this async
-            {//Eval(config, fromAsync, instances, feaInstances);                
-                List<AsyncTriggerArqSettings__c> dummyList = new List<AsyncTriggerArqSettings__c>();
-                runExecutePattern(config, fromAsync, instances, feaInstances, dummyList);
-            }
+            List<AsyncTriggerArqSettings__c> dummyList = new List<AsyncTriggerArqSettings__c>();
+            runExecutePattern(config, fromAsync, instances, feaInstances, dummyList);
             
         }
     }
