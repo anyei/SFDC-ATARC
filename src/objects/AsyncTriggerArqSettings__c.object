@@ -124,7 +124,7 @@
         <label>isAsync</label>
         <trackTrending>false</trackTrending>
         <type>Checkbox</type>
-    </fields>    
+    </fields>
     <label>ATARC Process Settings</label>
     <visibility>Public</visibility>
 </CustomObject>

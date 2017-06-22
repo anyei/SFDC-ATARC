@@ -108,8 +108,6 @@ public class AsyncTriggerArc {
         
         if (Limits.getQueueableJobs() < GOVERNOR_LIMITS_QUEUEABLE) {
             newInstance = new AsyncTriggerArcQueueable();
-            
-            atarcDebug(' Requesting queueable instance, current queue count ' + Limits.getQueueableJobs());
         }
         return newInstance;
     }
@@ -170,7 +168,6 @@ public class AsyncTriggerArc {
             
             for (AsyncTriggerArqSettings__c setting: settings) {
                 
-                atarcDebug('loading config, entry ' + setting.name + ' async ' + setting.isAsync__c + ' object ' + setting.SObject__c + ' event ' + setting.Event__c);
                 if (syncFirst) {
                     /*
 * All non async processes are executed in the first after call in the transaction transaction
@@ -452,7 +449,6 @@ orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort();
             }
             /***********************************/
             if(standardInterface.contains(setting.name)){
-                atarcDebug('Skipping.. It is an instance of AsyncTriggerArcProcessBase ' + setting.Name);
                 continue;
             }
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
@@ -877,6 +873,10 @@ continue; //if previous pattern executed without succeed then just break/
             //after preparing data for the triggerContext upper loop should run the next process in line.
             object output = RunClass(instances, feaInstances, config, setting);
             
+            //cleaning the heap a little bit
+            if(instances.containsKey(setting.name))
+            	instances.remove(setting.name);
+            
             customData.put(setting.Name, output);
             
         }
@@ -1284,7 +1284,7 @@ continue; //if previous pattern executed without succeed then just break/
             
             customData = pCustomData;
             
-            
+            //TODO: TEST THIS SCENARIO FOR runningAsyncContext = true
             //to overcome sfdc limit 
             //(only one queueable can be called from within a queueable so any dlm inside the implementation 
             //of the this context will be executed within this transaction unfortunately)
