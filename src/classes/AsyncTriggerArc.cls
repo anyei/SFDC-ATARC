@@ -894,7 +894,7 @@ public class AsyncTriggerArc {
             get;
             set;
         }
-        public decimal processTime {
+        public long processTime {
             get;
             set;
         }
@@ -933,27 +933,27 @@ public class AsyncTriggerArc {
     public class AsyncTriggerArcContext {
         public boolean isBefore {
             get;
-            set;
+            protected set;            
         }
         public boolean isAfter {
             get;
-            set;
+            protected set;
         }
         public boolean isUpdate {
             get;
-            set;
+            protected set;
         }
         public boolean isDelete {
             get;
-            set;
+            protected set;
         }
         public boolean isInsert {
             get;
-            set;
+            protected set;
         }
         public boolean isUndelete {
             get;
-            set;
+            protected set;
         }
         public integer transactionLoop {
             get {
@@ -970,19 +970,19 @@ public class AsyncTriggerArc {
         }
         public List < SObject > newList {
             get;
-            set;
+            protected set;
         }
         public List < SObject > oldList {
             get;
-            set;
+            protected set;
         }
         public Map < id, SObject > oldMap {
             get;
-            set;
+            protected set;
         }
         public Map < id, SObject > newMap {
             get;
-            set;
+            protected set;
         }
         
         protected string processName;
@@ -1045,7 +1045,6 @@ public class AsyncTriggerArc {
     
     
     /*
-    * Genera
     * Helper classes shall extend this class
     */
     public abstract class AsyncTriggerArcFEAProcessBase {
@@ -1073,7 +1072,7 @@ public class AsyncTriggerArc {
         
     }
     
-    public class AsyncTriggerArcQueueable implements Queueable, Database.AllowsCallouts  {
+    class AsyncTriggerArcQueueable implements Queueable, Database.AllowsCallouts  {
         public AsyncTriggerArcConfig Config {
             get;
             set;
