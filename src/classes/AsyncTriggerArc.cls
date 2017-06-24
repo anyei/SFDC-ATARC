@@ -382,7 +382,7 @@ public class AsyncTriggerArc {
                    globalConfig.Chain.add(setting);
                }
                
-               Eval(globalConfig, false, null, null);
+               Eval(globalConfig, null, null);
            }
         
         
@@ -669,11 +669,11 @@ public class AsyncTriggerArc {
     //@method
     //Evaluates the apex classes from the custom settings to send it to the fea pattern or the regular execute method
     /*****************************/
-    static void Eval(AsyncTriggerArcConfig config, boolean fromAsync,  map < string, AsyncTriggerArcProcessBase > instances, map < string, AsyncTriggerArcFEAProcessBase > feaInstances) {
+    static void Eval(AsyncTriggerArcConfig config, map < string, AsyncTriggerArcProcessBase > instances, map < string, AsyncTriggerArcFEAProcessBase > feaInstances) {
         atarcDebug('Preparing to start invoke processes');
         
-        instances = fromAsync ? instances : getInstances(config);
-        feaInstances = fromAsync ? feaInstances : getFeaInstances(config, instances.keyset());
+        instances =  getInstances(config);
+        feaInstances =  getFeaInstances(config, instances.keyset());
         
         List < AsyncTriggerArqSettings__c > syncProcessesToRunActionPattern = new List < AsyncTriggerArqSettings__c > ();
         
@@ -681,20 +681,19 @@ public class AsyncTriggerArc {
         
         /*
         * FIRST LOOP TO DO FILTER PATTERN
-        */
-        if(fromAsync != true)
-            runFilterPattern(config, deletionContext, feaInstances, config.chain, fromAsync);
+        */ 
+        runFilterPattern(config, deletionContext, feaInstances, config.chain, false);
         
         /*
         * EXECUTION invoke, no loop in here
 		*/
         //processes chaning logic
-        boolean breakTransaction = runExecutePattern(config, fromAsync, instances,feaInstances, syncProcessesToRunActionPattern);
+        boolean breakTransaction = runExecutePattern(config, false, instances,feaInstances, syncProcessesToRunActionPattern);
         
         /*
         * SECOND LOOP TO DO ACTION PATTERN
         */
-        runActionPattern(config, fromAsync, breakTransaction, deletionContext, feaInstances, syncProcessesToRunActionPattern);
+        runActionPattern(config, false, breakTransaction, deletionContext, feaInstances, syncProcessesToRunActionPattern);
         
     }
     
@@ -1124,28 +1123,6 @@ public class AsyncTriggerArc {
             instances = instances.containsKey(currentSetting.name) ? instances : new Map<string,AsyncTriggerArcProcessBase>() ; 
             feaInstances = feaInstances.containsKey(currentSetting.name) ? feaInstances : new Map<string, AsyncTriggerArcFEAProcessBase>() ;
             
-            object o = null;
-            
-            if(instances.size() == 0 && feaInstances.size() == 0)
-            {
-                o = RequestInstance(currentSetting.ApexHelperClassName__c, currentSetting.breakIfError__c);
-                if(o instanceof AsyncTriggerArcProcessBase){
-                    instances =  new Map < string, AsyncTriggerArcProcessBase > {
-                        
-                        currentSetting.Name => (AsyncTriggerArcProcessBase)o 
-                            };
-                                }
-                
-                if(o instanceof AsyncTriggerArcFEAProcessBase){
-                    feaInstances =  new Map < string, AsyncTriggerArcFEAProcessBase > {
-                        currentSetting.Name => (AsyncTriggerArcFEAProcessBase)o
-                            };
-                                }
-                
-                
-            }
-            
-            
             customData = pCustomData;
             
             //TODO: TEST THIS SCENARIO FOR runningAsyncContext = true
@@ -1158,12 +1135,10 @@ public class AsyncTriggerArc {
             processesExecStatuses = pstatuses;
             
             skips = pSkips;
-            
-           
                        
             boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
             
-            if (feaInstances.containsKey(currentSetting.name))//(includePattern(PATTERN_FILTER, currentSetting))
+            if (feaInstances.containsKey(currentSetting.name))
                 runFilterPattern(config, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
                     currentSetting
                         }, fromAsync);
