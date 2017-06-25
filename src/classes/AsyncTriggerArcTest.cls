@@ -101,6 +101,9 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         if(triggerContext.getCurrentProcessName() == 'Test Process 15')
             result = 'from 15';
         
+        if(triggerContext.getCurrentProcessName() == 'Test Process async 1')
+            result = 'form async p';
+        
         return result;
             
     }
@@ -761,5 +764,57 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         system.assert(totalProcesses == 1 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 3 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
 		        
       }
+    
+    @IsTest static void processWithAsyncShouldExecute(){
+        
+         
+        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
+            new AsyncTriggerArqSettings__c(Name='Test Process async 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=true)
+        };
+       
+            
+            insert testSettings;
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+                                               false, //before
+                                              true, //after 
+                                              true, //insert
+                                              false, 
+                                              false,
+                                              false,
+            new List<Opportunity>{new opportunity()},
+                                              new List<Opportunity>{new Opportunity()},
+                                              null, 
+                                              null);
+         
+         
+         
+         
+        
+    	test.startTest();
+         
+         
+        atarc.Start();//first run
+        
+         
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+         
+        system.assert(totalProcesses == 6 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 6 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+		system.assert(atarc.globalConfig.triggerContext.getProcessData('Test Process async 1') == 'form async p', 'Expected is "form async p" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process async 1')+'"');
+       
+      }
+    
+    
+    
    
 }
