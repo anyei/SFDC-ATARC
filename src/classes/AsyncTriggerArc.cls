@@ -380,6 +380,7 @@ public class AsyncTriggerArc {
                
                for (AsyncTriggerArqSettings__c setting: settings) {
                    globalConfig.Chain.add(setting);
+                   atarcDebug(setting.name);
                }
                
                Eval(globalConfig, null, null);
@@ -548,8 +549,8 @@ public class AsyncTriggerArc {
             
             long startTime = system.datetime.now().millisecond();
             
-            for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
-                
+            for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList) ) {
+
                 for (AsyncTriggerArqSettings__c setting: chain) {
                     if(setting.isAsync__c == true && fromAsync != true) continue;
                     
@@ -573,7 +574,7 @@ public class AsyncTriggerArc {
                             {
                                    
                                    feaInstance.filter((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
-                                   
+                                       
                                    long totalTime = system.datetime.now().millisecond() - startTime;
                                    
                                    UpdateStatusSuccess(setting.name);
@@ -628,9 +629,6 @@ public class AsyncTriggerArc {
                 //this is key to get rid of the processed processes from the queue
                 AsyncTriggerArqSettings__c setting = config.chain.remove(0);
                 
-                 if (feainstances.containskey(setting.name))  syncProcessesToRunActionPattern.add(setting);
-                               
-                atarcDebug('Evaluating process:\n'+setting + '\n Status of '+setting.DependsOnError__c+' : '+ (processesExecStatuses.containsKey(setting.DependsOnError__c) ? processesExecStatuses.get(setting.DependsOnError__c).status : ''));
                 
                 /**********************************/
                 //simple skip functionality
@@ -659,6 +657,8 @@ public class AsyncTriggerArc {
                 if (breakTransaction) { //&& DEFAULT_OPERATION_STRATEGY_MODE.equalsIgnoreCase(config.strategyMode) ){                
                     break;
                 }
+                
+                if (feainstances.containskey(setting.name))  syncProcessesToRunActionPattern.add(setting);
             }
         }
         atarcDebug('Running EXECUTE pattern COMPLETE');
@@ -677,11 +677,11 @@ public class AsyncTriggerArc {
         
         List < AsyncTriggerArqSettings__c > syncProcessesToRunActionPattern = new List < AsyncTriggerArqSettings__c > ();
         
-        boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
+        boolean deletionContext = config.triggerContext.isdelete == true; //|| config.triggerContext.isUndelete == true;
         
         /*
         * FIRST LOOP TO DO FILTER PATTERN
-        */ 
+        */
         runFilterPattern(config, deletionContext, feaInstances, config.chain, false);
         
         /*
