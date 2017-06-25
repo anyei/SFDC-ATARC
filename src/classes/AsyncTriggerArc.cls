@@ -475,6 +475,13 @@ public class AsyncTriggerArc {
                     SObject record = (deletionContext == true ? config.triggerContext.oldList[i] : config.triggerContext.newList[i]);
                     for (AsyncTriggerArqSettings__c setting: chain) {
                         
+                         /**********************************/
+                        //simple skip functionality
+                        if (canSkip(config.skipEverything, setting)) {
+                            atarcDebug('BYPASS FOUND getFEAInstances '+setting.Name);
+                            continue;
+                        }
+                                    
                         if (feaInstances.containsKey(setting.name)) {
                             AsyncTriggerArcFEAProcessBase feaInstance = feaInstances.get(setting.name);
                             
@@ -552,6 +559,13 @@ public class AsyncTriggerArc {
             for ( integer i = 0;i< (deletionContext == true ? config.triggerContext.oldList.size() : config.triggerContext.newList.size()) ; i++ ) {
 				SObject record= (deletionContext == true ? config.triggerContext.oldList[i] : config.triggerContext.newList[i]);
                 for (AsyncTriggerArqSettings__c setting: chain) {
+                    
+                    /**********************************/
+                        //simple skip functionality
+                        if (canSkip(config.skipEverything, setting)) {
+                            atarcDebug('BYPASS FOUND getFEAInstances '+setting.Name);
+                            continue;
+                        }
                     if(setting.isAsync__c == true && fromAsync != true) continue;
                     
                     if (feaInstances.containsKey(setting.name) ) {

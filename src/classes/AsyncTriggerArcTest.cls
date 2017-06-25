@@ -23,6 +23,9 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         if(triggerContext.getCurrentProcessName() == 'Filter Error 1')
             throw new AsyncTriggerArc.AsyncTriggerArcException('Filter Error 1');
+        
+        if(triggerContext.getCurrentProcessName() == 'Skip 5')
+            triggerContext.bypass(AsyncTriggerArc.PROCESS_SKIP, 'Skip 6');
     }
     
     /*
@@ -37,6 +40,9 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
          if(triggerContext.getCurrentProcessName() == 'Filter Error 2')
             throw new AsyncTriggerArc.AsyncTriggerArcException('Filter Error 2');
+        
+        if(triggerContext.getCurrentProcessName() == 'Skip 5')
+            triggerContext.bypass(AsyncTriggerArc.PROCESS_SKIP, 'Skip 6');
         
         
     }
@@ -825,6 +831,57 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     }
     
     
+    @IsTest static void BypassProcess(){
+        
+        
+        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
+            new AsyncTriggerArqSettings__c(Name='Skip 5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+            new AsyncTriggerArqSettings__c(Name='Skip 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
+                };
+                    
+                    
+                    insert testSettings;
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            false, //before
+            true, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        
+        
+        
+        
+        test.startTest();
+        
+        
+        atarc.Start();//first run
+        
+        
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 7 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 7 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('Skip 5').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for Skip 5');
+        
+    }
+    
     @IsTest static void ErrorWhenNoSObjectTypeFound(){
         
         string errMsg = '';
@@ -949,12 +1006,10 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         
         system.assert(totalProcesses == 6 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 6 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
-        system.assert(executionResult.get('Filter Error 2').status==AsyncTriggerArc.PROCESS_FAILED, 'Expected is Process failed for Filter Error 1');
+        system.assert(executionResult.get('Filter Error 2').status==AsyncTriggerArc.PROCESS_FAILED, 'Expected is Process failed for Filter Error 2');
         
     }
-    
-    
-    
+
     @IsTest static void ErrorInFEAExecuteStep(){
         
         
@@ -1000,7 +1055,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         
         system.assert(totalProcesses == 6 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 6 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
-        system.assert(executionResult.get('Filter Error 3').status==AsyncTriggerArc.PROCESS_FAILED, 'Expected is Process failed for Filter Error 1');
+        system.assert(executionResult.get('Filter Error 3').status==AsyncTriggerArc.PROCESS_FAILED, 'Expected is Process failed for Filter Error 3');
         
     }
 }
