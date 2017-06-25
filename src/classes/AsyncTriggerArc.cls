@@ -471,8 +471,8 @@ public class AsyncTriggerArc {
                 long startTime = system.datetime.now().millisecond();
                 atarcDebug('Pending actions to run '+chain.size());
                 
-                for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList)) {
-                    
+                for (integer i =0;i<(deletionContext == true ? config.triggerContext.oldList.size() : config.triggerContext.newList.size());i++) {
+                    SObject record = (deletionContext == true ? config.triggerContext.oldList[i] : config.triggerContext.newList[i]);
                     for (AsyncTriggerArqSettings__c setting: chain) {
                         
                         if (feaInstances.containsKey(setting.name)) {
@@ -494,7 +494,7 @@ public class AsyncTriggerArc {
                                   )
                                 {
                                        
-                                       feaInstance.action((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
+                                       feaInstance.action((deletionContext != true ?  config.triggerContext.oldList[i] : record),(deletionContext != true ? record : null), config.triggerContext);
                                        
                                        long totalTime = system.datetime.now().millisecond() - startTime;
                                        
@@ -549,8 +549,8 @@ public class AsyncTriggerArc {
             
             long startTime = system.datetime.now().millisecond();
             
-            for (SObject record: (deletionContext == true ? config.triggerContext.oldList : config.triggerContext.newList) ) {
-
+            for ( integer i = 0;i< (deletionContext == true ? config.triggerContext.oldList.size() : config.triggerContext.newList.size()) ; i++ ) {
+				SObject record= (deletionContext == true ? config.triggerContext.oldList[i] : config.triggerContext.newList[i]);
                 for (AsyncTriggerArqSettings__c setting: chain) {
                     if(setting.isAsync__c == true && fromAsync != true) continue;
                     
@@ -573,7 +573,7 @@ public class AsyncTriggerArc {
                             )    
                             {
                                    
-                                   feaInstance.filter((deletionContext != true ?  config.triggerContext.oldMap.get(record.id) : record),(deletionContext != true ? record : null), config.triggerContext);
+                                   feaInstance.filter((deletionContext != true ?  config.triggerContext.oldList[i] : record),(deletionContext != true ? record : null), config.triggerContext);
                                        
                                    long totalTime = system.datetime.now().millisecond() - startTime;
                                    
@@ -592,7 +592,7 @@ public class AsyncTriggerArc {
 
                             atarcDebug('EXCEPTION!!:\n' + err.getMessage());
                             
-                            /**********************************/
+                            
                             //break transaction if error feature
                             if (setting.BreakIfError__c) {
                                 atarcDebug('breaking transaction');
