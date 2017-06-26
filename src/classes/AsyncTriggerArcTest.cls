@@ -1058,4 +1058,43 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         system.assert(executionResult.get('Filter Error 3').status==AsyncTriggerArc.PROCESS_FAILED, 'Expected is Process failed for Filter Error 3');
         
     }
+
+    @IsTest static void NoProcessRun(){
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, //update 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        
+        
+        
+        
+        test.startTest();
+        
+        AsyncTriggerArc.globalSkip = true;
+        atarc.Start();//first run
+        
+        
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 0 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 0 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        
+    }
+
 }

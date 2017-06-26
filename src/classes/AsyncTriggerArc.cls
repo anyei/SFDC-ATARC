@@ -29,7 +29,7 @@ public class AsyncTriggerArc {
     public static final string EVENT_SKIP = 'event';
     public static final string PROCESS_SKIP = 'process';
     public static final string FRAMEWORK_NAME = 'ATARC';
-    public static final integer GOVERNOR_LIMITS_QUEUEABLE = 50;
+    public static final integer GOVERNOR_LIMITS_QUEUEABLE = System.Limits.getLimitQueueableJobs();
     
     //global maps, lists, config
     @TestVisible static Map < string, map < string, AsyncTriggerArqSettings__c[] >> arqSettings;
