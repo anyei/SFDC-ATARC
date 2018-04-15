@@ -288,10 +288,10 @@ public class AsyncTriggerArc {
     * To be used by outside helpers, this way if you try to print something in the debug output
     * it will depend on the specific current atarc process debug mode flag
     */
-    public static void debug(string msg){
+    public static void debug(object msg){
         if(!processesStack.isEmpty()){
             AsyncTriggerArcDebugStackSetting currentProcessDebugInfo= processesStack[processesStack.size() - 1];
-            debug(currentProcessDebugInfo.name,currentProcessDebugInfo.debugMode,currentProcessDebugInfo.lvl, msg );
+            debug(currentProcessDebugInfo.name,currentProcessDebugInfo.debugMode,currentProcessDebugInfo.lvl, string.valueof(msg) );
         }
     }
     
