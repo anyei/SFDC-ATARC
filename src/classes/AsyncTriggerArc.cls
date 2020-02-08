@@ -36,7 +36,12 @@ public class AsyncTriggerArc {
     
     //must be an instance variable
     //this is the state of engine instance    
-    @TestVisible AsyncTriggerArcConfig globalConfig;    
+    @TestVisible AsyncTriggerArcConfig globalConfig;
+
+    //Salesforce has a weird suggestion on how to test custom metadata type related code
+    //I think this is a better solution, this field should be populated by the unit test
+    //It will be populated by the real code at runtime.
+	@TestVisible List < ATARC_Process_Setting__mdt > settings;    
    
     @testVisible static Map < string, set < string > > skips;
     
@@ -148,8 +153,8 @@ public class AsyncTriggerArc {
             Map < string, Map < string, List < integer >>> orderLogicA = new Map < string, Map < string, List < integer >>> ();
             Map < string, Map < string, List < integer >>> orderLogicS = new Map < string, Map < string, List < integer >>> ();
             
-            List < ATARC_Process_Setting__mdt > settings = [select DeveloperName , MasterLabel, ApexHelperClassName__c , BreakIfError__c , Category__c , Debug__c , Debug_Level__c , DependsOnFailure__c , DependsOnSuccess__c , Event__c , IsActive__c , IsAsync__c , Order__c , SObject__c, isolate__c from ATARC_Process_Setting__mdt where isActive__c = true
-order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings__c.GetAll().values();
+            settings = settings == null ? [select DeveloperName , MasterLabel, ApexHelperClassName__c , BreakIfError__c , Category__c , Debug__c , Debug_Level__c , DependsOnFailure__c , DependsOnSuccess__c , Event__c , IsActive__c , IsAsync__c , Order__c , SObject__c, isolate__c from ATARC_Process_Setting__mdt where isActive__c = true
+order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTriggerArqSettings__c.GetAll().values();
             
             for (ATARC_Process_Setting__mdt setting: settings) {
                 if (setting.IsActive__c && !canSkip(globalSkip, setting)) {
@@ -404,10 +409,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
         return instances;
     }
     
-    /*
-    *@method
-    * Pushes a debug info object instance to the process stack
-    */
+    /**/
     static void pushToProcessStack(ATARC_Process_Setting__mdt setting){
         AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
         debuggingInfo.debugMode = setting.debug__c;

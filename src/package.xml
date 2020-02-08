@@ -6,8 +6,9 @@
         <name>ApexClass</name>
     </types>
     <types>
-        <members>AsyncTriggerArqSettings__c</members>
+        <members>ATARC_Global_Setting__c</members>
+        <members>ATARC_Process_Setting__mdt</members>
         <name>CustomObject</name>
     </types>
-    <version>38.0</version>
+    <version>47.0</version>
 </Package>

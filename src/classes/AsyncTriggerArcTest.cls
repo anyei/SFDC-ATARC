@@ -124,26 +124,28 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
     }
     
-    
-    @testsetup static void setupData(){
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=3, isAsync__c=false),
-                new AsyncTriggerArqSettings__c(Name='Test Process 2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
-                new AsyncTriggerArqSettings__c(Name='Test Process 3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, BreakIfError__c=true),
-                new AsyncTriggerArqSettings__c(Name='Test Process 4',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=4,
-                                               DependsOn__c = 'Test Process 2',isAsync__c=false),
-                new AsyncTriggerArqSettings__c(Name='Test Process 5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=5,isAsync__c=false)
-                };
-                    
-                    
-                    insert testSettings;
+    @testSetup static void setupSettings(){
+        ATARC_Global_Setting__c aSetting = new ATARC_Global_Setting__c(debug__c = true, LoopLimit__c=1);
+        insert aSetting;
     }
     
+    static List<ATARC_Process_Setting__mdt> setupData(){
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, BreakIfError__c=true),
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
+                    new ATARC_Process_Setting__mdt(DeveloperName='Test Process 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=3, isAsync__c=false),
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 4',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=4,
+                                               DependsOnSuccess__c = 'Test Process 2',isAsync__c=false),
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=5,isAsync__c=false)
+                };
+          return testSettings;
+                   
+    }
     
     @IsTest static void ProcessOrderShouldOrderBaseOnTheOrderFieldDefault(){
         AsyncTriggerArc atarc = new AsyncTriggerArc(
@@ -157,18 +159,18 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
+        atarc.settings = setupData();
         test.starttest();    
         atarc.processOrder(true);
         test.stoptest();
         
-        system.assert(AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(0).name == 'Test Process 3','Expected is "Test Process 3" is the first element in the list, current is '+
+        system.assert(AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(0).DeveloperName == 'Test Process 3','Expected is "Test Process 3" is the first element in the list, current is '+
                       AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(0));
         
-        system.assert(AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(1).name == 'Test Process 2','Expected is "Test Process 2" is the second element in the list, current is '+
+        system.assert(AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(1).DeveloperName == 'Test Process 2','Expected is "Test Process 2" is the second element in the list, current is '+
                       AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(1));
         
-        system.assert(AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(2).name == 'Test Process 1','Expected is "Test Process 1" is the second element in the list, current is '+
+        system.assert(AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(2).DeveloperName == 'Test Process 1','Expected is "Test Process 1" is the second element in the list, current is '+
                       AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(2));
     }
     
@@ -184,7 +186,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Contact>{new Contact()},
             null, 
             null);
-        
+        atarc.settings = setupData();
         test.starttest();    
         atarc.Start();
         test.stoptest();
@@ -210,7 +212,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
+        atarc.settings = setupData();
         test.startTest();
         atarc.Start();
         test.stoptest();
@@ -237,7 +239,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
+        atarc.settings = setupData();
         test.startTest();        
         atarc.Start();
         test.stoptest();
@@ -272,7 +274,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
+        atarc.settings = setupData();
         test.startTest();        
         atarc.Start();
         test.stoptest();
@@ -307,6 +309,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
+        atarc.settings = setupData();
         AsyncTriggerArc.AsyncTriggerArcContext triggerContext = new AsyncTriggerArc.AsyncTriggerArcContext();
         
         test.startTest();
@@ -348,7 +351,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
+        atarc.settings = setupData();
         AsyncTriggerArc.AsyncTriggerArcContext triggerContext = new AsyncTriggerArc.AsyncTriggerArcContext();
         
         test.startTest();
@@ -368,10 +371,10 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     }
     
     @IsTest static void ApexClassInTheSettingsDoesNotExistsShouldThrowError(){
-        delete [select id from AsyncTriggerArqSettings__c];
-        
-        insert new AsyncTriggerArqSettings__c(Name='Test Process fake class',SObject__c='Opportunity', ApexHelperClassName__c='FakeRandomClassWhoWIllNeverExistsEverAsyncTriggerWithALongLongLongLOngLOnglONgName',
-                                              Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,BreakIfError__c=true);
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+             new ATARC_Process_Setting__mdt(DeveloperName='Test Process fake class',SObject__c='Opportunity', ApexHelperClassName__c='FakeRandomClassWhoWIllNeverExistsEverAsyncTriggerWithALongLongLongLOngLOnglONgName',
+                                              Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,BreakIfError__c=true)
+                 };
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             true, //before
             false, 
@@ -383,6 +386,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
+        atarc.settings = testSettings;
         string errorMessage = '';
         
         test.startTest();
@@ -399,22 +403,19 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     
     @IsTest static void NextProcessShouldRunWhenDependenciesErrorOut(){
         
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='BeforeInsert',IsActive__c=true,Order__c=6, isAsync__c=false),
                 
-                new AsyncTriggerArqSettings__c(Name='Test Process To Error',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               debug__c = true, debugLevel__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=7, isAsync__c=false),
-                new AsyncTriggerArqSettings__c(Name='Test Process 8',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process To Error',
-                                               debug__c = true, debugLevel__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=8, isAsync__c=false),
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process To Error',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                               debug__c = true, debug_Level__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=7, isAsync__c=false),
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 8',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnSuccess__c='Test Process To Error',
+                                               debug__c = true, debug_Level__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=8, isAsync__c=false),
                 
-                new AsyncTriggerArqSettings__c(Name='Test Process 9',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 9',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                                Event__c='BeforeInsert',IsActive__c=true,Order__c=9,isAsync__c=false)
                 
                 };
-                    
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             true, //before
@@ -427,6 +428,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
+        atarc.settings = setupData();
+        atarc.settings.addAll(testSettings);
         string errorMessage = '';
         
         test.startTest();
@@ -458,18 +461,13 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     
     @IsTest static void transactionLoopShouldRun3Times(){
         
-        List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
-        delete toDelete;
-        
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process 10',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process 10',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
                 
                 
                 };
                     
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             false, //before
@@ -482,6 +480,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
+        atarc.settings = testSettings;
+        
         string errorMessage = '';
         
         test.startTest();
@@ -510,18 +510,12 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     
     @IsTest static void transactionLoopShouldRun1Times(){
         
-        List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
-        delete toDelete;
-        
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process 11',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process 11',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
                 
                 
                 };
-                    
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             false, //before
@@ -534,6 +528,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
+        atarc.settings = testSettings;
+        
         string errorMessage = '';
         
         test.startTest();
@@ -562,18 +558,13 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     
     @IsTest static void transactionLoopShouldRun2Times(){
         
-        List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
-        delete toDelete;
-        
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process 12',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process 12',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
                 
                 
                 };
                     
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             false, //before
@@ -586,6 +577,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
+        atarc.settings = testSettings;
+        
         string errorMessage = '';
         
         test.startTest();
@@ -614,20 +607,14 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     
     @IsTest static void triggerContextSetFailedDependentProcessNotRunning(){
         
-        List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
-        delete toDelete;
-        
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
-                new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process 13',
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnSuccess__c='Test Process 13',
                                                Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
                 
                 
                 };
-                    
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             true, //before
@@ -640,6 +627,9 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
+        
+        atarc.settings = testSettings;
+        
         string errorMessage = '';
         
         test.startTest();
@@ -669,20 +659,17 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     
     @IsTest static void triggerContextSetFailedDependentOnErrorRunning(){
         
-        List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
-        delete toDelete;
         
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
-                new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnError__c='Test Process 13',
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnFailure__c='Test Process 13',
                                                Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
                 
                 
                 };
                     
                     
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             true, //before
@@ -695,6 +682,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
+        atarc.settings = testSettings;
+        
         string errorMessage = '';
         
         test.startTest();
@@ -722,23 +711,19 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     }
     
     @IsTest static void triggerContextAddEventSkip(){
+
         
-        List<AsyncTriggerArqSettings__c> toDelete = [select id from AsyncTriggerArqSettings__c];
-        delete toDelete;
-        
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
-                new AsyncTriggerArqSettings__c(Name='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOn__c='Test Process 13',
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnSuccess__c='Test Process 13',
                                                Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
-                new AsyncTriggerArqSettings__c(Name='Test Process 15',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                new ATARC_Process_Setting__mdt(DeveloperName='Test Process 15',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                                Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
                 
                 
                 };
                     
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             true, //before
@@ -751,9 +736,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
-        
-        
+        atarc.settings = testSettings;
         
         AsyncTriggerArc.AsyncTriggerArcContext triggerContext = new AsyncTriggerArc.AsyncTriggerArcContext();
         
@@ -764,8 +747,6 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         triggerContext.bypass('event', 'BeforeInsert');
         
         atarc.Start();//first run
-        
-        
         test.stoptest();
         
         Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
@@ -784,13 +765,11 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     @IsTest static void processWithAsyncShouldExecute(){
         
         
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Test Process async 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process async 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=true)
                 };
                     
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             false, //before
@@ -803,17 +782,11 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
-        
-        
-        
+        atarc.settings = setupData();
+        atarc.settings.addAll(testSettings);
         
         test.startTest();
-        
-        
         atarc.Start();//first run
-        
-        
         test.stoptest();
         
         Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
@@ -830,19 +803,16 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
     }
     
-    
     @IsTest static void BypassProcess(){
         
         
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Skip 5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Skip 5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
-            new AsyncTriggerArqSettings__c(Name='Skip 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+            new ATARC_Process_Setting__mdt(DeveloperName='Skip 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
                 };
                     
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             false, //before
@@ -855,17 +825,11 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
-        
-        
-        
+        atarc.settings = setupData();
+        atarc.settings.addAll(testSettings);
         
         test.startTest();
-        
-        
         atarc.Start();//first run
-        
-        
         test.stoptest();
         
         Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
@@ -915,13 +879,10 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     @IsTest static void ErrorInFEAFilterStep(){
         
         
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Filter Error 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Filter Error 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
                 };
-                    
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             false, //before
@@ -934,17 +895,11 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
-        
-        
-        
+        atarc.settings = setupData();
+        atarc.settings.addAll(testSettings);
         
         test.startTest();
-        
-        
         atarc.Start();//first run
-        
-        
         test.stoptest();
         
         Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
@@ -964,13 +919,11 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     @IsTest static void ErrorInFEAActionStep(){
         
         
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Filter Error 2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Filter Error 2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
                 };
                     
-                    
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             false, //before
@@ -983,17 +936,12 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        
-        
-        
+        atarc.settings = setupData();
+        atarc.settings.addAll(testSettings);
         
         
         test.startTest();
-        
-        
-        atarc.Start();//first run
-        
-        
+        atarc.Start();
         test.stoptest();
         
         Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
@@ -1013,13 +961,12 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     @IsTest static void ErrorInFEAExecuteStep(){
         
         
-        List<AsyncTriggerArqSettings__c> testSettings = new List<AsyncTriggerArqSettings__c>{
-            new AsyncTriggerArqSettings__c(Name='Filter Error 3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Filter Error 3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                            Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
                 };
                     
                     
-                    insert testSettings;
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             false, //before
@@ -1033,16 +980,11 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             null, 
             null);
         
-        
-        
-        
+        atarc.settings= setupData();
+        atarc.settings.addAll(testSettings);
         
         test.startTest();
-        
-        
         atarc.Start();//first run
-        
-        
         test.stoptest();
         
         Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
