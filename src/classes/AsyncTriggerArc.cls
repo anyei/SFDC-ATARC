@@ -101,8 +101,9 @@ public class AsyncTriggerArc {
         if(globalConfigSetting != null)  {
             globalSkip = globalConfigSetting.SkipAll__c;
             globalDebugMode = globalConfigSetting.Debug__c;
+            globalTransactionLoop = Integer.valueof(globalConfigSetting.LoopLimit__c);
         }
-        globalTransactionLoop = 1;        
+                
         
         runningAsyncContext = false;
         
@@ -135,16 +136,6 @@ public class AsyncTriggerArc {
         return skip || gskip;
     }
     
-    //it will be always synchronous first
-    boolean SyncFirst() {
-        return true;
-        
-    }
-    
-    //TODO: DECOM
-    boolean respectOrder() {
-        return false;
-    }
     
     /*
     * @method
@@ -159,18 +150,6 @@ public class AsyncTriggerArc {
             
             List < ATARC_Process_Setting__mdt > settings = [select DeveloperName , MasterLabel, ApexHelperClassName__c , BreakIfError__c , Category__c , Debug__c , Debug_Level__c , DependsOnFailure__c , DependsOnSuccess__c , Event__c , IsActive__c , IsAsync__c , Order__c , SObject__c, isolate__c from ATARC_Process_Setting__mdt where isActive__c = true
 order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings__c.GetAll().values();
-            
-            
-            
-            /*
-        * Synchronous settings should be executed first, no matter if in the order of execution they are listed after an async one
-        * This is to avoid specific behavior ( If async process A executes and then the next in line to be executed are three sync process
-        * if we want to separate those transactions then we need to make the sync processes to execute from within an async operation )
-        * 
-        */
-            
-            boolean syncFirst = SyncFirst();
-            boolean respectOrder = respectOrder();
             
             for (ATARC_Process_Setting__mdt setting: settings) {
                 if (setting.IsActive__c && !canSkip(globalSkip, setting)) {
@@ -715,7 +694,11 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
         config.triggerContext.debugMode = setting.debug__c;
         config.triggerContext.debugLevel = setting.debug_Level__c;
         
-        if (setting.isAsync__c &&
+        //async processes should break the upper loop only if isolate is false
+        //so that only one active process thread is working            
+        AsyncTriggerArcQueueable asyncWorker = RequestQueuable();
+        
+        if (setting.isAsync__c && asyncWorker != null &&
             //to fix specific problems when dml happens on a processes and the objects
             //affected by the dml has async process as well
             !runningAsyncContext) {
@@ -725,10 +708,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
                 
                 atarcDebug('Async running...');
                 
-                //async processes should break the upper loop
-                //so that only one active process thread is working            
-                //AsyncTriggerArcQueueable asyncWorker = new AsyncTriggerArcQueueable(config, setting, processesExecStatuses);
-                AsyncTriggerArcQueueable asyncWorker = RequestQueuable();
                 asyncWorker.currentSetting = setting;
                 asyncWorker.config = config;
                 if(setting.isolate__c){
@@ -743,18 +722,16 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
                 asyncWorker.pSkips = skips;
                 asyncWorker.instances = instances;  //(instances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcProcessBase > { setting.name => instances.get(setting.name)} : new Map<string,AsyncTriggerArcProcessBase>() );
                 asyncWorker.feaInstances = feaInstances; //(feaInstances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcFEAProcessBase > { setting.name => feaInstances.get(setting.name)} : new Map<string,AsyncTriggerArcFEAProcessBase>() );   
-                //asyncWorker.qpool = mainQueuableUsedPool;
-                
+                    
                 system.enqueueJob(asyncWorker);
-                
                 atarcDebug('Processes executed async');
                 
                 isAsync = setting.isolate__c != true; // if isAsync = true processes in the config.chain will be executed from the recently queued queueable execution for the current object/event               
             } 
          
-        else  /* if (includePattern(PATTERN_EXECUTE, setting))*/ {
+        else {
             
-            atarcDebug('Running...');
+            atarcDebug('Running '+setting.DeveloperName+'...');
             
             //after class is executed then get the output if any
             //after preparing data for the triggerContext upper loop should run the next process in line.
