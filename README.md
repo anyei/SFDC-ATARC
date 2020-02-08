@@ -1,5 +1,7 @@
 # ATARC
 
+# MAJOR CHANGES, DOCUMENTATION REVAMP PENDING 2020-02-08
+
 Inbound request ahead but Opportunity triggers are too many not sure where to add this new feature!!! 
 
 Triggers are flooded with functionalities and salesforce governor limits within DML transactions are a pain in my.... neck, how can i come up with something so that at least let us make some extra space within the transaction to include another process that needs to run within this trigger with a better performance and efficiency?. I think i'm not the only one nor the first one who have asked that question.
