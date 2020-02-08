@@ -405,6 +405,18 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
     }
     
     /*
+    *@method
+    * Pushes a debug info object instance to the process stack
+    */
+    static void pushToProcessStack(ATARC_Process_Setting__mdt setting){
+        AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
+        debuggingInfo.debugMode = setting.debug__c;
+        debuggingInfo.lvl = setting.debug_Level__c;
+        debuggingInfo.name = setting.DeveloperName;
+        processesStack.add(debuggingInfo);
+    }
+    
+    /*
     * @method
     * Implementation of the action step in the fea pattern
     */
@@ -438,11 +450,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
                             config.triggerContext.debugLevel = setting.debug_Level__c;
                             config.triggerContext.processName = setting.DeveloperName;
 
-                            AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
-                            debuggingInfo.debugMode = setting.debug__c;
-                            debuggingInfo.lvl = setting.debug_Level__c;
-                            debuggingInfo.name = setting.DeveloperName;
-                            processesStack.add(debuggingInfo);
+                            pushToProcessStack(setting);
                             boolean noError = true;
                             
                             //invoking the "action" method
@@ -533,11 +541,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
                         config.triggerContext.debugLevel = setting.debug_Level__c;
                         config.triggerContext.processName = setting.DeveloperName;
                         
-                        AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
-                        debuggingInfo.debugMode = setting.debug__c;
-                        debuggingInfo.lvl = setting.debug_Level__c;
-                        debuggingInfo.name = setting.DeveloperName;
-                        processesStack.add(debuggingInfo);
+                        pushToProcessStack(setting);
                         boolean noError = true;
                         //invoking the "filter" method
                         try {
@@ -622,11 +626,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
                 config.triggerContext.debugLevel = setting.debug_Level__c;
                 config.triggerContext.processName = setting.DeveloperName;
                 
-                AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
-                debuggingInfo.debugMode = setting.debug__c;
-                debuggingInfo.lvl = setting.debug_Level__c;
-                debuggingInfo.name = setting.DeveloperName;
-                processesStack.add(debuggingInfo);
+                pushToProcessStack(setting);
                 
                 
                 if ( (String.isnotblank(setting.DependsOnSuccess__c) && processesExecStatuses.containsKeY(setting.DependsOnSuccess__c) && processesExecStatuses.get(setting.DependsOnSuccess__c).status == PROCESS_EXECUTED) || 
@@ -1135,12 +1135,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings
                     currentSetting
                         }, fromAsync);
             
-            AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
-            debuggingInfo.debugMode = currentSetting.debug__c;
-            debuggingInfo.lvl = currentSetting.debug_Level__c;
-            debuggingInfo.name = currentSetting.DeveloperName;
-            processesStack.add(debuggingInfo);
-                
+            pushToProcessStack(currentSetting);
             object output = RunClass(instances,feaInstances, config, currentSetting);
             
             //store the output of the current invocation
