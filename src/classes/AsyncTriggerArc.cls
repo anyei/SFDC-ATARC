@@ -32,7 +32,7 @@ public class AsyncTriggerArc {
     public static final integer GOVERNOR_LIMITS_QUEUEABLE = System.Limits.getLimitQueueableJobs();
     
     //global maps, lists, config
-    @TestVisible static Map < string, map < string, AsyncTriggerArqSettings__c[] >> arqSettings;
+    @TestVisible static Map < string, map < string, List<ATARC_Process_Setting__mdt> >> arqSettings;
     
     //must be an instance variable
     //this is the state of engine instance    
@@ -68,7 +68,7 @@ public class AsyncTriggerArc {
     static {
         customData = new Map < string, object > ();
         
-        arqSettings = new Map < string, Map < string, AsyncTriggerArqSettings__c[] >> ();
+        arqSettings = new Map < string, Map < string, List<ATARC_Process_Setting__mdt> >> ();
         
         triggerExecTrack = new Map < string, Map < string, integer >> ();
         
@@ -97,7 +97,11 @@ public class AsyncTriggerArc {
                     orderProcessed = false;
         
         globalSkip = false;
-        
+        ATARC_Global_Setting__c globalConfigSetting = ATARC_Global_Setting__c.getInstance();
+        if(globalConfigSetting != null)  {
+            globalSkip = globalConfigSetting.SkipAll__c;
+            globalDebugMode = globalConfigSetting.Debug__c;
+        }
         globalTransactionLoop = 1;        
         
         runningAsyncContext = false;
@@ -114,10 +118,8 @@ public class AsyncTriggerArc {
         return newInstance;
     }
     
-    @TestVisible static boolean canSkip(boolean gskip, AsyncTriggerArqSettings__c setting) {
+    @TestVisible static boolean canSkip(boolean gskip, ATARC_Process_Setting__mdt setting) {
         boolean skip = false;
-        
-        //if (gskip == true) return gskip;
         
         for (string skipType: skips.keyset()) {
             if (skipType == CATEGORY_SKIP)
@@ -127,7 +129,7 @@ public class AsyncTriggerArc {
             if (skipType == EVENT_SKIP)
                 if (skip = skips.get(skipType).contains(setting.Event__c)) break;
             if (skipType == PROCESS_SKIP)
-                if (skip = skips.get(skipType).contains(setting.Name)) break;
+                if (skip = skips.get(skipType).contains(setting.DeveloperName)) break;
             
         }
         return skip || gskip;
@@ -155,7 +157,8 @@ public class AsyncTriggerArc {
             Map < string, Map < string, List < integer >>> orderLogicA = new Map < string, Map < string, List < integer >>> ();
             Map < string, Map < string, List < integer >>> orderLogicS = new Map < string, Map < string, List < integer >>> ();
             
-            List < AsyncTriggerArqSettings__c > settings = AsyncTriggerArqSettings__c.GetAll().values();
+            List < ATARC_Process_Setting__mdt > settings = [select DeveloperName , MasterLabel, ApexHelperClassName__c , BreakIfError__c , Category__c , Debug__c , Debug_Level__c , DependsOnFailure__c , DependsOnSuccess__c , Event__c , IsActive__c , IsAsync__c , Order__c , SObject__c, isolate__c from ATARC_Process_Setting__mdt where isActive__c = true
+order by SObject__c, Event__c,Order__c,isAsync__c asc];//AsyncTriggerArqSettings__c.GetAll().values();
             
             
             
@@ -169,88 +172,19 @@ public class AsyncTriggerArc {
             boolean syncFirst = SyncFirst();
             boolean respectOrder = respectOrder();
             
-            for (AsyncTriggerArqSettings__c setting: settings) {
-                
-                if (syncFirst) {
-                    /*
-                    * All non async processes are executed in the first after call in the transaction transaction
-                    */
-                    if (setting.IsActive__c && !canSkip(globalSkip, setting) && setting.isAsync__c) {
-                        
-                        //order logic.. as we dont have soql we must order by our self
-                        if (!orderLogicA.containsKey(setting.SObject__c))
-                            orderLogicA.put(setting.SObject__c, new Map < string, List < integer >> ());
-                        
-                        if (!orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c))
-                            orderLogicA.get(setting.SObject__c).put(setting.Event__c, new List < integer > ());
-                        
-                        //if the order is null then by defaualt we set 0
-                        setting.order__c = setting.order__c == null ? 0 : setting.order__c;
-
-                        orderLogicA.get(setting.SObject__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
-                        orderLogicA.get(setting.SObject__c).get(setting.Event__c).sort(); //this controls the order of execution for async executions
-                        
-                        
-                        
-                    } 
-                    else if (setting.IsActive__c && !canSkip(globalSkip, setting) && setting.isAsync__c != true) {
-                        
-                        //order logic.. as we dont have soql we must order by our self
-                        if (!orderLogicS.containsKey(setting.SObject__c))
-                            orderLogicS.put(setting.SObject__c, new Map < string, List < integer >> ());
-                        
-                        if (!orderLogicS.get(setting.SObject__c).containsKey(setting.Event__c))
-                            orderLogicS.get(setting.SObject__c).put(setting.Event__c, new List < integer > ());
-                        
-                        orderLogicS.get(setting.SObject__c).get(setting.Event__c).add(integer.valueof(setting.order__c));
-                        
-                        orderLogicS.get(setting.SObject__c).get(setting.Event__c).sort(); //this controls the order of the synchronous features
-                        
-                    }
-                    
-                    /* RESPECT THE ORDER OF THE PROCESSES*/
-                } 
-                
-            }
-            
-            for (AsyncTriggerArqSettings__c setting: settings) {
+            for (ATARC_Process_Setting__mdt setting: settings) {
                 if (setting.IsActive__c && !canSkip(globalSkip, setting)) {
                     
-                    if (!processesExecStatuses.containsKey(setting.name))
-                        processesExecStatuses.put(setting.name, new AsyncTriggerArcProcessInfo());
-                    
-                    
-                    List < integer > opa = (
-                        (syncFirst || respectOrder) && orderLogicA.containsKey(setting.SObject__c) && orderLogicA.get(setting.SObject__c).containsKey(setting.Event__c) ?
-                        orderLogicA.get(setting.SObject__c).get(setting.Event__c) :
-                        new List < Integer > ()
-                    );
-                    
-                    
-                    List < integer > ops = (
-                        (syncFirst || respectOrder) && orderLogicS.containsKey(setting.SObject__c) && orderLogicS.get(setting.SObject__c).containsKey(setting.Event__c) ?
-                        orderLogicS.get(setting.SObject__c).get(setting.Event__c) :
-                        new List < Integer > ()
-                    );
+                    if (!processesExecStatuses.containsKey(setting.DeveloperName))
+                        processesExecStatuses.put(setting.DeveloperName, new AsyncTriggerArcProcessInfo());
                     
                     if (!arqSettings.containsKey(setting.SObject__c))
-                        arqSettings.put(setting.SObject__c, new Map < string, AsyncTriggerArqSettings__c[] > ());
+                        arqSettings.put(setting.SObject__c, new Map < string, List<ATARC_Process_Setting__mdt> > ());
                     
                     if (!arqSettings.get(setting.SObject__c).containsKey(setting.Event__c))
-                        arqSettings.get(setting.SObject__c).put(setting.Event__c, new AsyncTriggerArqSettings__c[(syncFirst ? opa.size() + ops.size() : opa.size())]);
+                        arqSettings.get(setting.SObject__c).put(setting.Event__c, new List<ATARC_Process_Setting__mdt>());
                     
-                    
-                    for (integer i = 0; i < ((setting.isAsync__c || respectOrder) ? opa.size() : ops.size()); i++) {
-                        
-                        if (setting.isAsync__c != true && i < ops.size() && ops[i] == integer.valueof(setting.order__c)) {
-                            arqSettings.get(setting.SObject__c).get(setting.Event__c).set(i, setting);
-                            
-                        } else if ((setting.isAsync__c || respectOrder) && opa[i] == integer.valueof(setting.order__c)) {
-                            arqSettings.get(setting.SObject__c).get(setting.Event__c).set(i + (respectOrder() ? 0 : ops.size()), setting);
-                        }
-                    }
-                    
-                    
+                    arqSettings.get(setting.SObject__c).get(setting.Event__c).add(setting);
                     
                 }
                 
@@ -318,7 +252,7 @@ public class AsyncTriggerArc {
               
         //the chain of process to execute should be reset every time 
         //a trigger is executed
-        globalConfig.Chain = new List < AsyncTriggerArqSettings__c > ();
+        globalConfig.Chain = new List < ATARC_Process_Setting__mdt > ();
         
         
         triggerEventTxt = ((globalConfig.triggerContext.isBefore = isBefore) ? 'Before' : '') + ((globalConfig.triggerContext.isAfter = isAfter) ? 'After' : '') +
@@ -394,13 +328,13 @@ public class AsyncTriggerArc {
                updateTriggerTrack();
                /*********************************/
                
-               List < AsyncTriggerArqSettings__c > settings = arqSettings.get(sObjectName).get(triggerEventTxt);
+               List < ATARC_Process_Setting__mdt > settings = arqSettings.get(sObjectName).get(triggerEventTxt);
                
                atarcDebug('Event match found:' + triggerEventTxt + '\nTotal processes:' + settings.size());
                
-               for (AsyncTriggerArqSettings__c setting: settings) {
+               for (ATARC_Process_Setting__mdt setting: settings) {
                    globalConfig.Chain.add(setting);
-                   atarcDebug(setting.name);
+                   atarcDebug(setting.DeveloperName);
                }
                
                Eval(globalConfig, null, null);
@@ -438,7 +372,7 @@ public class AsyncTriggerArc {
         map < string, AsyncTriggerArcProcessBase > instances = new Map < string, AsyncTriggerArcProcessBase > ();
         
         atarcDebug('Generating instances..getInstances');
-        for (AsyncTriggerArqSettings__c setting: config.chain) {
+        for (ATARC_Process_Setting__mdt setting: config.chain) {
             //instantiate the objects
             //and invoke the filter method
             
@@ -446,14 +380,14 @@ public class AsyncTriggerArc {
             /**********************************/
             //simple skip functionality
             if (canSkip(config.skipEverything, setting)) {
-                atarcDebug('BYPASS FOUND getInstances '+setting.Name);
+                atarcDebug('BYPASS FOUND getInstances '+setting.DeveloperName);
                 continue;
             }
             /***********************************/
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
             AsyncTriggerArcProcessBase instance = (o instanceof AsyncTriggerArcProcessBase ) ?  (AsyncTriggerArcProcessBase) o : null; 
             if (instance != null)
-                instances.put(setting.name, instance);
+                instances.put(setting.DeveloperName, instance);
         }
         
         return instances;
@@ -467,25 +401,25 @@ public class AsyncTriggerArc {
         map < string, AsyncTriggerArcFEAProcessBase > instances = new Map < string, AsyncTriggerArcFEAProcessBase > ();
         
         atarcDebug('Generating instances..getFEAInstances');
-        for (AsyncTriggerArqSettings__c setting: config.chain) {
+        for (ATARC_Process_Setting__mdt setting: config.chain) {
             //instantiate the objects
             //and invoke the filter method
             
             /**********************************/
             //simple skip functionality
             if (canSkip(config.skipEverything, setting)) {
-                atarcDebug('BYPASS FOUND getFEAInstances '+setting.Name);
+                atarcDebug('BYPASS FOUND getFEAInstances '+setting.DeveloperName);
                 continue;
             }
             /***********************************/
-            if(standardInterface.contains(setting.name)){
+            if(standardInterface.contains(setting.DeveloperName)){
                 continue;
             }
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
             AsyncTriggerArcFEAProcessBase instance = (o instanceof AsyncTriggerArcFEAProcessBase) ? (AsyncTriggerArcFEAProcessBase)o: null;
             
             if (instance != null)
-                instances.put(setting.name, instance);
+                instances.put(setting.DeveloperName, instance);
         }
         
         return instances;
@@ -495,7 +429,7 @@ public class AsyncTriggerArc {
     * @method
     * Implementation of the action step in the fea pattern
     */
-    static void runActionPattern(AsyncTriggerArcConfig config, boolean fromAsync, boolean breakTransaction, boolean deletionContext, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < AsyncTriggerArqSettings__c > chain) {
+    static void runActionPattern(AsyncTriggerArcConfig config, boolean fromAsync, boolean breakTransaction, boolean deletionContext, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < ATARC_Process_Setting__mdt > chain) {
         if (breakTransaction != true) {
             atarcDebug('Running ACTION Pattern');
             if(feaInstances.size() == 0 ) atarcDebug('No fea instances found, action pattern will not run ');
@@ -507,37 +441,37 @@ public class AsyncTriggerArc {
                 
                 for (integer i =0;i<(deletionContext == true ? config.triggerContext.oldList.size() : config.triggerContext.newList.size());i++) {
                     SObject record = (deletionContext == true ? config.triggerContext.oldList[i] : config.triggerContext.newList[i]);
-                    for (AsyncTriggerArqSettings__c setting: chain) {
+                    for (ATARC_Process_Setting__mdt setting: chain) {
                         
                          /**********************************/
                         //simple skip functionality
                         if (canSkip(config.skipEverything, setting)) {
-                            atarcDebug('BYPASS FOUND getFEAInstances '+setting.Name);
+                            atarcDebug('BYPASS FOUND getFEAInstances '+setting.DeveloperName);
                             continue;
                         }
                                     
-                        if (feaInstances.containsKey(setting.name)) {
-                            AsyncTriggerArcFEAProcessBase feaInstance = feaInstances.get(setting.name);
+                        if (feaInstances.containsKey(setting.DeveloperName)) {
+                            AsyncTriggerArcFEAProcessBase feaInstance = feaInstances.get(setting.Developername);
                             
                             
                             //configuring
                             config.triggerContext.debugMode = setting.debug__c;
-                            config.triggerContext.debugLevel = setting.debugLevel__c;
-                            config.triggerContext.processName = setting.name;
+                            config.triggerContext.debugLevel = setting.debug_Level__c;
+                            config.triggerContext.processName = setting.DeveloperName;
 
                             AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
                             debuggingInfo.debugMode = setting.debug__c;
-                            debuggingInfo.lvl = setting.debugLevel__c;
-                            debuggingInfo.name = setting.Name;
+                            debuggingInfo.lvl = setting.debug_Level__c;
+                            debuggingInfo.name = setting.DeveloperName;
                             processesStack.add(debuggingInfo);
                             boolean noError = true;
                             
                             //invoking the "action" method
                             try {
                                 
-                                if( (String.isNotEmpty(setting.DependsOn__c) && processesExecStatuses.containsKeY(setting.DependsOn__c) &&  processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED ) ||
-                                    (String.isNotEmpty(setting.DependsOnError__c) && processesExecStatuses.containsKeY(setting.DependsOnError__c) && processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED ) ||
-                                    (String.isBlank(setting.DependsOn__c) && String.isBlank(setting.DependsOnError__c) )
+                                if( (String.isNotEmpty(setting.DependsOnSuccess__c) && processesExecStatuses.containsKeY(setting.DependsOnSuccess__c) &&  processesExecStatuses.get(setting.DependsOnSuccess__c).status == PROCESS_EXECUTED ) ||
+                                    (String.isNotEmpty(setting.DependsOnFailure__c ) && processesExecStatuses.containsKeY(setting.DependsOnFailure__c ) && processesExecStatuses.get(setting.DependsOnFailure__c ).status == PROCESS_FAILED ) ||
+                                    (String.isBlank(setting.DependsOnSuccess__c) && String.isBlank(setting.DependsOnFailure__c ) )
                                   )
                                 {
                                        
@@ -545,9 +479,9 @@ public class AsyncTriggerArc {
                                        
                                        long totalTime = system.datetime.now().millisecond() - startTime;
                                        
-                                       UpdateStatusSuccess(setting.name);
+                                       UpdateStatusSuccess(setting.DeveloperName);
                                        
-                                       UpdateProcessTime(setting.name, totalTime);
+                                       UpdateProcessTime(setting.DeveloperName, totalTime);
                                        
                                    } 
                                 
@@ -555,8 +489,8 @@ public class AsyncTriggerArc {
                                 
                                 long totalTime = system.datetime.now().millisecond() - startTime;
                                 
-                                UpdateStatusFailed(setting.name);
-                                UpdateProcessTime(setting.name, totalTime);
+                                UpdateStatusFailed(setting.DeveloperName);
+                                UpdateProcessTime(setting.DeveloperName, totalTime);
                                 
                                 atarcDebug('EXCEPTION!!:\n' + err.getMessage());
                                 processesStack.remove(processesStack.size() - 1);
@@ -589,7 +523,7 @@ public class AsyncTriggerArc {
     * @method
     * Implementation of the filter step in the fea pattern
     */
-    static void runFilterPattern(AsyncTriggerArcConfig config, boolean deletionContext, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < AsyncTriggerArqSettings__c > chain, boolean fromAsync) {
+    static void runFilterPattern(AsyncTriggerArcConfig config, boolean deletionContext, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < ATARC_Process_Setting__mdt > chain, boolean fromAsync) {
         atarcDebug('Running first loop for FILTER pattern ');
         
         if(feaInstances.size() == 0) atarcDebug('No fea instances found, filter pattern will not run');
@@ -601,38 +535,38 @@ public class AsyncTriggerArc {
             
             for ( integer i = 0;i< (deletionContext == true ? config.triggerContext.oldList.size() : config.triggerContext.newList.size()) ; i++ ) {
                 SObject record= (deletionContext == true ? config.triggerContext.oldList[i] : config.triggerContext.newList[i]);
-                for (AsyncTriggerArqSettings__c setting: chain) {
+                for (ATARC_Process_Setting__mdt setting: chain) {
                     
                     /**********************************/
                         //simple skip functionality
                         if (canSkip(config.skipEverything, setting)) {
-                            atarcDebug('BYPASS FOUND getFEAInstances '+setting.Name);
+                            atarcDebug('BYPASS FOUND getFEAInstances '+setting.DeveloperName);
                             continue;
                         }
                     if(setting.isAsync__c == true && fromAsync != true) continue;
                     
-                    if (feaInstances.containsKey(setting.name) ) {
+                    if (feaInstances.containsKey(setting.DeveloperName) ) {
                         
-                        AsyncTriggerArcFEAProcessBase feaInstance = feaInstances.get(setting.name);
+                        AsyncTriggerArcFEAProcessBase feaInstance = feaInstances.get(setting.DeveloperName);
                         
                         //configuring
                         config.triggerContext.debugMode = setting.debug__c;
-                        config.triggerContext.debugLevel = setting.debugLevel__c;
-                        config.triggerContext.processName = setting.name;
+                        config.triggerContext.debugLevel = setting.debug_Level__c;
+                        config.triggerContext.processName = setting.DeveloperName;
                         
                         AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
                         debuggingInfo.debugMode = setting.debug__c;
-                        debuggingInfo.lvl = setting.debugLevel__c;
-                        debuggingInfo.name = setting.Name;
+                        debuggingInfo.lvl = setting.debug_Level__c;
+                        debuggingInfo.name = setting.DeveloperName;
                         processesStack.add(debuggingInfo);
                         boolean noError = true;
                         //invoking the "filter" method
                         try {
                             
                             
-                            if ((String.isNotEmpty(setting.DependsOn__c) && processesExecStatuses.containsKeY(setting.DependsOn__c) && processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED ) ||
-                                (String.isNotEmpty(setting.DependsOnError__c) && processesExecStatuses.containsKeY(setting.DependsOnError__c) && processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED ) ||
-                                (String.isBlank(setting.DependsOn__c) && String.isBlank(setting.DependsOnError__c))
+                            if ((String.isNotEmpty(setting.DependsOnSuccess__c) && processesExecStatuses.containsKeY(setting.DependsOnSuccess__c) && processesExecStatuses.get(setting.DependsOnSuccess__c).status == PROCESS_EXECUTED ) ||
+                                (String.isNotEmpty(setting.DependsOnFailure__c) && processesExecStatuses.containsKeY(setting.DependsOnFailure__c) && processesExecStatuses.get(setting.DependsOnFailure__c).status == PROCESS_FAILED ) ||
+                                (String.isBlank(setting.DependsOnSuccess__c) && String.isBlank(setting.DependsOnFailure__c))
                             )    
                             {
                                    
@@ -640,9 +574,9 @@ public class AsyncTriggerArc {
                                 
                                    long totalTime = system.datetime.now().millisecond() - startTime;
                                    
-                                   UpdateStatusSuccess(setting.name);
+                                   UpdateStatusSuccess(setting.DeveloperName);
                                    
-                                   UpdateProcessTime(setting.name, totalTime);
+                                   UpdateProcessTime(setting.DeveloperName, totalTime);
                                    
                                } 
                             
@@ -650,8 +584,8 @@ public class AsyncTriggerArc {
                             
                             long totalTime = system.datetime.now().millisecond() - startTime;
                             
-                            UpdateStatusFailed(setting.name);
-                            UpdateProcessTime(setting.name, totalTime);
+                            UpdateStatusFailed(setting.DeveloperName);
+                            UpdateProcessTime(setting.DeveloperName, totalTime);
 
                             atarcDebug('EXCEPTION!!:\n' + err.getMessage());
                             processesStack.remove(processesStack.size() - 1);
@@ -679,7 +613,7 @@ public class AsyncTriggerArc {
     * @method
     * Calls the execute method from the base process class (either fea or not)
     */
-    static boolean runExecutePattern(AsyncTriggerArcConfig config, boolean fromAsync, map < string, AsyncTriggerArcProcessBase > instances,map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < AsyncTriggerArqSettings__c > syncProcessesToRunActionPattern) {
+    static boolean runExecutePattern(AsyncTriggerArcConfig config, boolean fromAsync, map < string, AsyncTriggerArcProcessBase > instances,map < string, AsyncTriggerArcFEAProcessBase > feaInstances, List < ATARC_Process_Setting__mdt > syncProcessesToRunActionPattern) {
         boolean breakTransaction = false;
         atarcDebug('Running  EXECUTE Pattern');
         
@@ -693,32 +627,32 @@ public class AsyncTriggerArc {
                 
                 //"doing pop", returning and removing the next process to evaluate and execute
                 //this is key to get rid of the processed processes from the queue
-                AsyncTriggerArqSettings__c setting = config.chain.remove(0);
+                ATARC_Process_Setting__mdt setting = config.chain.remove(0);
                 
                 
                 /**********************************/
                 //simple skip functionality
                 if (canSkip(config.skipEverything, setting)) {
-                    atarcDebug('BYPASS FOUND execute '+setting.name);                    
+                    atarcDebug('BYPASS FOUND execute '+setting.DeveloperName);                    
                     break;
                 }
                 /***********************************/
                 
                 //configuring
                 config.triggerContext.debugMode = setting.debug__c;
-                config.triggerContext.debugLevel = setting.debugLevel__c;
-                config.triggerContext.processName = setting.name;
+                config.triggerContext.debugLevel = setting.debug_Level__c;
+                config.triggerContext.processName = setting.DeveloperName;
                 
                 AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
                 debuggingInfo.debugMode = setting.debug__c;
-                debuggingInfo.lvl = setting.debugLevel__c;
-                debuggingInfo.name = setting.Name;
+                debuggingInfo.lvl = setting.debug_Level__c;
+                debuggingInfo.name = setting.DeveloperName;
                 processesStack.add(debuggingInfo);
                 
                 
-                if ( (String.isnotblank(setting.DependsOn__c) && processesExecStatuses.containsKeY(setting.DependsOn__c) && processesExecStatuses.get(setting.DependsOn__c).status == PROCESS_EXECUTED) || 
-                    (String.isnotblank(setting.DependsOnError__c) && processesExecStatuses.containsKeY(setting.DependsOnError__c) && processesExecStatuses.get(setting.DependsOnError__c).status == PROCESS_FAILED ) ||
-                    (String.isBlank(setting.DependsOn__c) && String.isBlank(setting.DependsOnError__c))
+                if ( (String.isnotblank(setting.DependsOnSuccess__c) && processesExecStatuses.containsKeY(setting.DependsOnSuccess__c) && processesExecStatuses.get(setting.DependsOnSuccess__c).status == PROCESS_EXECUTED) || 
+                    (String.isnotblank(setting.DependsOnFailure__c) && processesExecStatuses.containsKeY(setting.DependsOnFailure__c) && processesExecStatuses.get(setting.DependsOnFailure__c).status == PROCESS_FAILED ) ||
+                    (String.isBlank(setting.DependsOnSuccess__c) && String.isBlank(setting.DependsOnFailure__c))
                    )
                 {
                        breakTransaction = Run(instances, feaInstances, config, setting, fromAsync);
@@ -730,7 +664,7 @@ public class AsyncTriggerArc {
                     break;
                 }
                 
-                if (feainstances.containskey(setting.name))  syncProcessesToRunActionPattern.add(setting);
+                if (feainstances.containskey(setting.DeveloperName))  syncProcessesToRunActionPattern.add(setting);
             }
         }
         atarcDebug('Running EXECUTE pattern COMPLETE');
@@ -747,7 +681,7 @@ public class AsyncTriggerArc {
         instances =  getInstances(config);
         feaInstances =  getFeaInstances(config, instances.keyset());
         
-        List < AsyncTriggerArqSettings__c > syncProcessesToRunActionPattern = new List < AsyncTriggerArqSettings__c > ();
+        List < ATARC_Process_Setting__mdt > syncProcessesToRunActionPattern = new List < ATARC_Process_Setting__mdt > ();
         
         boolean deletionContext = config.triggerContext.isdelete == true; //|| config.triggerContext.isUndelete == true;
         
@@ -775,11 +709,11 @@ public class AsyncTriggerArc {
     //@method
     //RUN
     /**************************************/
-    static boolean Run(map < string, AsyncTriggerArcProcessBase > instances, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, AsyncTriggerArcConfig config, AsyncTriggerArqSettings__c setting, boolean fromAsync) {
+    static boolean Run(map < string, AsyncTriggerArcProcessBase > instances, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, AsyncTriggerArcConfig config, ATARC_Process_Setting__mdt setting, boolean fromAsync) {
         
         boolean isAsync = false;
         config.triggerContext.debugMode = setting.debug__c;
-        config.triggerContext.debugLevel = setting.debugLevel__c;
+        config.triggerContext.debugLevel = setting.debug_Level__c;
         
         if (setting.isAsync__c &&
             //to fix specific problems when dml happens on a processes and the objects
@@ -797,6 +731,12 @@ public class AsyncTriggerArc {
                 AsyncTriggerArcQueueable asyncWorker = RequestQueuable();
                 asyncWorker.currentSetting = setting;
                 asyncWorker.config = config;
+                if(setting.isolate__c){
+                    asyncWorker.config = new AsyncTriggerArcConfig();
+                    asyncWorker.config.Chain = new List<ATARC_Process_Setting__mdt>();
+                    asyncWorker.config.Chain.add(setting);
+                    asyncWorker.config.triggerContext = config.triggerContext;
+                }
                 asyncWorker.pStatuses = processesExecStatuses;
                 asyncWorker.fromAsync = true;
                 asyncWorker.pCustomData =  customData;
@@ -809,7 +749,7 @@ public class AsyncTriggerArc {
                 
                 atarcDebug('Processes executed async');
                 
-                isAsync = true;
+                isAsync = setting.isolate__c != true; // if isAsync = true processes in the config.chain will be executed from the recently queued queueable execution for the current object/event               
             } 
          
         else  /* if (includePattern(PATTERN_EXECUTE, setting))*/ {
@@ -821,16 +761,20 @@ public class AsyncTriggerArc {
             object output = RunClass(instances, feaInstances, config, setting);
             
             //cleaning the heap a little bit
-            if(instances.containsKey(setting.name))
-                instances.remove(setting.name);
+            if(instances.containsKey(setting.DeveloperName))
+                instances.remove(setting.DeveloperName);
             
-            customData.put(setting.Name, output);
+            customData.put(setting.DeveloperName, output);
                         
         }
         
         return isAsync;
     }
     
+    static AsyncTriggerArcConfig CopyConfig(AsyncTriggerArcConfig a){
+        AsyncTriggerArcConfig result = new AsyncTriggerArcConfig();
+        return result;
+    }
     
     /*
     * @method
@@ -858,27 +802,27 @@ public class AsyncTriggerArc {
     //@method
     //RUNCLASS
     /********************************/
-    static Object RunClass(Map < string, AsyncTriggerArcProcessBase > instances, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, AsyncTriggerArcConfig config, AsyncTriggerArqSettings__c setting) {        
+    static Object RunClass(Map < string, AsyncTriggerArcProcessBase > instances, map < string, AsyncTriggerArcFEAProcessBase > feaInstances, AsyncTriggerArcConfig config, ATARC_Process_Setting__mdt setting) {        
         
         object o =  null;
         
         AsyncTriggerArcProcessBase instance = (          
-            instances.containsKey(setting.name) ? instances.get(setting.name) : null
+            instances.containsKey(setting.DeveloperName) ? instances.get(setting.DeveloperName) : null
         );
         AsyncTriggerArcFEAProcessBase feaInstance = (            
-            feaInstances.containsKey(setting.name) ? feaInstances.get(setting.name) : null           
+            feaInstances.containsKey(setting.DeveloperName) ? feaInstances.get(setting.DeveloperName) : null           
         );
         
         Object output = null;
         
-        config.triggerContext.processName = setting.name;
+        config.triggerContext.processName = setting.DeveloperName;
         
         
         long startTime = system.datetime.now().millisecond();
         
         try {
             
-            if (instance == null && feaInstances == null)
+            if (instance == null && feaInstance == null)
                 throw new AsyncTriggerArcException('Not able to instantiate Apex Class ' + setting.ApexHelperClassName__c);
             
             atarcDebug('instance found');
@@ -889,21 +833,20 @@ public class AsyncTriggerArc {
                      
             boolean outputExists = output != null;
             
-            atarcDebug('*****Processes executed exit ' + setting.ApexHelperClassName__c + '\nOutput Data:' + string.valueof(outputExists) + ' '+ processesExecStatuses.get(setting.name));
-            
             long totalTime = system.datetime.now().millisecond() - startTime;
             
-             UpdateStatusSuccess(setting.name);
-
+            UpdateStatusSuccess(setting.DeveloperName);
             
-            UpdateProcessTime(setting.name, totalTime);
+            UpdateProcessTime(setting.DeveloperName, totalTime);
+            
+            atarcDebug('*****Processes executed exit ' + setting.ApexHelperClassName__c + '\nOutput Data:' + string.valueof(outputExists) + ' '+ processesExecStatuses.get(setting.DeveloperName));
             
         } catch (Exception err) {
             
             long totalTime = system.datetime.now().millisecond() - startTime;
             
-            UpdateStatusFailed(setting.name);
-            UpdateProcessTime(setting.name, totalTime);
+            UpdateStatusFailed(setting.DeveloperName);
+            UpdateProcessTime(setting.DeveloperName, totalTime);
 
             atarcDebug('EXCEPTION!!:\n' + err.getMessage());
             
@@ -974,7 +917,7 @@ public class AsyncTriggerArc {
     
     class AsyncTriggerArcConfig {
         
-        public List < AsyncTriggerArqSettings__c > Chain {
+        public List < ATARC_Process_Setting__mdt > Chain {
             get;
             set;
         }
@@ -1149,7 +1092,7 @@ public class AsyncTriggerArc {
             get;
             set;
         }
-        public AsyncTriggerArqSettings__c currentSetting {
+        public ATARC_Process_Setting__mdt currentSetting {
             get;
             set;
         }
@@ -1189,10 +1132,11 @@ public class AsyncTriggerArc {
         }
         
         public virtual void execute(QueueableContext context) {
-            atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg + '\n'+currentSetting.name );
             
-            instances = instances.containsKey(currentSetting.name) ? instances : new Map<string,AsyncTriggerArcProcessBase>() ; 
-            feaInstances = feaInstances.containsKey(currentSetting.name) ? feaInstances : new Map<string, AsyncTriggerArcFEAProcessBase>() ;
+            atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg + '\n'+currentSetting.DeveloperName );
+            
+            //instances = instances.containsKey(currentSetting.DeveloperName) ? instances : new Map<string,AsyncTriggerArcProcessBase>() ; 
+            //feaInstances = feaInstances.containsKey(currentSetting.DeveloperName) ? feaInstances : new Map<string, AsyncTriggerArcFEAProcessBase>() ;
             
             customData = pCustomData;
             
@@ -1204,37 +1148,42 @@ public class AsyncTriggerArc {
             
             //tracking of the executed processes so far
             processesExecStatuses = pstatuses;
-            
+            system.debug(processesExecStatuses);
             skips = pSkips;
                        
             boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
             
-            if (feaInstances.containsKey(currentSetting.name))
-                runFilterPattern(config, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
+            if (feaInstances.containsKey(currentSetting.DeveloperName))
+                runFilterPattern(config, deletionContext, feaInstances, new List < ATARC_Process_Setting__mdt > {
                     currentSetting
                         }, fromAsync);
             
+            AsyncTriggerArcDebugStackSetting debuggingInfo = new AsyncTriggerArcDebugStackSetting();
+            debuggingInfo.debugMode = currentSetting.debug__c;
+            debuggingInfo.lvl = currentSetting.debug_Level__c;
+            debuggingInfo.name = currentSetting.DeveloperName;
+            processesStack.add(debuggingInfo);
+                
             object output = RunClass(instances,feaInstances, config, currentSetting);
             
             //store the output of the current invocation
-            customData.put(currentSetting.Name, output);
-            
-            //unflaggin this allows the eval process to run/chain another queueable
-            runningAsyncContext = false;
+            customData.put(currentSetting.DeveloperName, output);
                         
             /*
             * SECOND LOOP TO DO ACTIONS
             */
-            if (feaInstances.containsKey(currentSetting.name))//(includePattern(PATTERN_ACTION, currentSetting))
-                runActionPattern(config, true, false, deletionContext, feaInstances, new List < AsyncTriggerArqSettings__c > {
+            if (feaInstances.containsKey(currentSetting.DeveloperName))//(includePattern(PATTERN_ACTION, currentSetting))
+                runActionPattern(config, true, false, deletionContext, feaInstances, new List < ATARC_Process_Setting__mdt > {
                     currentSetting
                         });
             
+            //unflaggin this allows the eval process to run/chain another queueable
+            runningAsyncContext = false;
             
             //chain operations
             //call the next operation according to the order.            
-            List<AsyncTriggerArqSettings__c> dummyList = new List<AsyncTriggerArqSettings__c>();
-            runExecutePattern(config, fromAsync, instances, feaInstances, dummyList);
+            List<ATARC_Process_Setting__mdt> dummyList = new List<ATARC_Process_Setting__mdt>();
+            if(!currentSetting.isolate__c) runExecutePattern(config, fromAsync, instances, feaInstances, dummyList);
             
         }
     }
