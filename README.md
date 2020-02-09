@@ -154,7 +154,7 @@ So what we need is an entry in the custom metadata type "ATARC Process Setting",
 
 So, the **Custom Metadata Record Name** (api name is DeveloperName) field is an identifier, you can use this field to give a name to the process but be aware it should respect the custom metadata type name rules (i guess it should be unique and not having double underscores together and so on...), the rest of the fields are sort of self explanatories but i'll include a section dedicated to the meaning of each of these fields later. For now just take a good look at this table.
 
-**Here the custom metadata type and custom setting reference for more info https://github.com/anyei/SFDC-ATARC/wiki/Custom-Setting-Reference**
+**Here the custom metadata type and custom setting reference for more info https://github.com/anyei/SFDC-ATARC/wiki/Custom--Metadata-Types-and-Custom-Settings-Reference**
 
 So.....
 
