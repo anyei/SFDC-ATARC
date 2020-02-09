@@ -54,7 +54,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         string result;
         
         if(triggerContext.getCurrentProcessName() == 'Test Process 1')
-            result = 'something new';
+        {   result = 'something new'; AsyncTriggerArc.debug('this is for test'); }
         
         if(triggerContext.getCurrentProcessName() == 'Test Process 2')
             result = 'something old'; 
@@ -1038,5 +1038,5 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         system.assert(totalProcesses == 0 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 0 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
         
     }
-
+    
 }

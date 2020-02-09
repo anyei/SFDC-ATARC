@@ -750,11 +750,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         return isAsync;
     }
     
-    static AsyncTriggerArcConfig CopyConfig(AsyncTriggerArcConfig a){
-        AsyncTriggerArcConfig result = new AsyncTriggerArcConfig();
-        return result;
-    }
-    
     /*
     * @method
     * RequestInstance
@@ -1080,10 +1075,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             set;
         }
         public string additionalMsg {
-            get;
-            set;
-        }
-        public integer qpool {
             get;
             set;
         }
