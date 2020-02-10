@@ -41,7 +41,7 @@ public class AsyncTriggerArc {
     //Salesforce has a weird suggestion on how to test custom metadata type related code
     //I think this is a better solution, this field should be populated by the unit test
     //It will be populated by the real code at runtime.
-	@TestVisible List < ATARC_Process_Setting__mdt > settings;    
+	@TestVisible static List < ATARC_Process_Setting__mdt > settings;    
    
     @testVisible static Map < string, set < string > > skips;
     

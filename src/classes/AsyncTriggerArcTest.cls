@@ -159,7 +159,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
+        AsyncTriggerArc.settings = setupData();
         test.starttest();    
         atarc.processOrder(true);
         test.stoptest();
@@ -186,7 +186,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Contact>{new Contact()},
             null, 
             null);
-        atarc.settings = setupData();
+        AsyncTriggerArc.settings = setupData();
         test.starttest();    
         atarc.Start();
         test.stoptest();
@@ -212,7 +212,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
+        AsyncTriggerArc.settings = setupData();
         test.startTest();
         atarc.Start();
         test.stoptest();
@@ -239,7 +239,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
+        AsyncTriggerArc.settings = setupData();
         test.startTest();        
         atarc.Start();
         test.stoptest();
@@ -274,7 +274,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
+        AsyncTriggerArc.settings = setupData();
         test.startTest();        
         atarc.Start();
         test.stoptest();
@@ -309,7 +309,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
+        AsyncTriggerArc.settings = setupData();
         AsyncTriggerArc.AsyncTriggerArcContext triggerContext = new AsyncTriggerArc.AsyncTriggerArcContext();
         
         test.startTest();
@@ -351,7 +351,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
+        AsyncTriggerArc.settings = setupData();
         AsyncTriggerArc.AsyncTriggerArcContext triggerContext = new AsyncTriggerArc.AsyncTriggerArcContext();
         
         test.startTest();
@@ -386,7 +386,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = testSettings;
+        AsyncTriggerArc.settings = testSettings;
         string errorMessage = '';
         
         test.startTest();
@@ -428,8 +428,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
-        atarc.settings.addAll(testSettings);
+        AsyncTriggerArc.settings = setupData();
+        AsyncTriggerArc.settings.addAll(testSettings);
         string errorMessage = '';
         
         test.startTest();
@@ -480,7 +480,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = testSettings;
+        AsyncTriggerArc.settings = testSettings;
         
         string errorMessage = '';
         
@@ -528,7 +528,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = testSettings;
+        AsyncTriggerArc.settings = testSettings;
         
         string errorMessage = '';
         
@@ -577,7 +577,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = testSettings;
+        AsyncTriggerArc.settings = testSettings;
         
         string errorMessage = '';
         
@@ -628,7 +628,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             null, 
             null);
         
-        atarc.settings = testSettings;
+        AsyncTriggerArc.settings = testSettings;
         
         string errorMessage = '';
         
@@ -682,7 +682,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = testSettings;
+        AsyncTriggerArc.settings = testSettings;
         
         string errorMessage = '';
         
@@ -736,7 +736,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = testSettings;
+        AsyncTriggerArc.settings = testSettings;
         
         AsyncTriggerArc.AsyncTriggerArcContext triggerContext = new AsyncTriggerArc.AsyncTriggerArcContext();
         
@@ -782,8 +782,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
-        atarc.settings.addAll(testSettings);
+        AsyncTriggerArc.settings = setupData();
+        AsyncTriggerArc.settings.addAll(testSettings);
         
         test.startTest();
         atarc.Start();//first run
@@ -825,8 +825,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
-        atarc.settings.addAll(testSettings);
+        AsyncTriggerArc.settings = setupData();
+        AsyncTriggerArc.settings.addAll(testSettings);
         
         test.startTest();
         atarc.Start();//first run
@@ -895,8 +895,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
-        atarc.settings.addAll(testSettings);
+        AsyncTriggerArc.settings = setupData();
+        AsyncTriggerArc.settings.addAll(testSettings);
         
         test.startTest();
         atarc.Start();//first run
@@ -936,8 +936,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new Opportunity()},
             null, 
             null);
-        atarc.settings = setupData();
-        atarc.settings.addAll(testSettings);
+        AsyncTriggerArc.settings = setupData();
+        AsyncTriggerArc.settings.addAll(testSettings);
         
         
         test.startTest();
@@ -980,8 +980,8 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             null, 
             null);
         
-        atarc.settings= setupData();
-        atarc.settings.addAll(testSettings);
+        AsyncTriggerArc.settings= setupData();
+        AsyncTriggerArc.settings.addAll(testSettings);
         
         test.startTest();
         atarc.Start();//first run
@@ -1012,11 +1012,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             new List<Opportunity>{new opportunity()},
             new List<Opportunity>{new Opportunity()},
             null, 
-            null);
-        
-        
-        
-        
+            null);        
         
         test.startTest();
         
