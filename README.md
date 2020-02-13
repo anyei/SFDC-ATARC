@@ -146,7 +146,7 @@ In the example above our handler apex class is ChangeNameProcess and the trigger
 
 So what we need is an entry in the custom metadata type "ATARC Process Setting", This is how the entry should look:
 
-| Label | ATARC Process Setting Name                      | ApexHelperClassName | SObject     | Event        | IsActive | IsAsync | Order | DependsOnSuccess | DependsOnError | Debug | DebugLevel | breakIfError |
+| Label | ATARC Process Setting Name                      | ApexHelperClassName | SObject     | Event        | IsActive | IsAsync | Order | DependsOnSuccess | DependsOnFailure | Debug | DebugLevel | breakIfError |
 |---------------------------|---------------------------|---------------------|-------------|--------------|----------|---------|-------|------------------|----------------|-------|------------|--------------|
 | Name Changer | NameChanger1.0            | ChangeNameProcess         | Opportunity | BeforeInsert | true     | false   | 1     |                  |                | true  | DEBUG      | false        |
 
