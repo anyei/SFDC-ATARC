@@ -481,7 +481,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                                 UpdateStatusFailed(setting.DeveloperName);
                                 UpdateProcessTime(setting.DeveloperName, totalTime);
                                 
-                                atarcDebug('EXCEPTION!!:\n' + err.getMessage());
+                                debug('EXCEPTION!!:\n' + err.getMessage());
                                 processesStack.remove(processesStack.size() - 1);
                                 noError = false;
                                 /**********************************/
@@ -572,7 +572,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                             UpdateStatusFailed(setting.DeveloperName);
                             UpdateProcessTime(setting.DeveloperName, totalTime);
 
-                            atarcDebug('EXCEPTION!!:\n' + err.getMessage());
+                            debug('EXCEPTION!!:\n' + err.getMessage());
                             processesStack.remove(processesStack.size() - 1);
                             noError = false;
                             
@@ -822,7 +822,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             UpdateStatusFailed(setting.DeveloperName);
             UpdateProcessTime(setting.DeveloperName, totalTime);
 
-            atarcDebug('EXCEPTION!!:\n' + err.getMessage());
+            debug('EXCEPTION!!:\n' + err.getMessage());
             
             /**********************************/
             //break transaction if error feature
@@ -1118,7 +1118,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             
             //tracking of the executed processes so far
             processesExecStatuses = pstatuses;
-            system.debug(processesExecStatuses);
             skips = pSkips;
                        
             boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
