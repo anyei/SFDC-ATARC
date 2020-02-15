@@ -33,10 +33,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
 */ 
     protected override void action(SObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
         
-        
         triggerContext.debug('current processes ' + triggerContext.getCurrentProcessName());
-        
-        system.debug('algo from action '+ triggerContext.getCurrentProcessName());
         
          if(triggerContext.getCurrentProcessName() == 'Filter Error 2')
             throw new AsyncTriggerArc.AsyncTriggerArcException('Filter Error 2');
@@ -44,14 +41,13 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         if(triggerContext.getCurrentProcessName() == 'Skip 5')
             triggerContext.bypass(AsyncTriggerArc.PROCESS_SKIP, 'Skip 6');
         
-        
     }
     
     /*
 * MOCKING ATARC PROCESS 
 */
     protected override object execute(AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
-        string result;
+        object result;
         
         if(triggerContext.getCurrentProcessName() == 'Test Process 1')
         {   result = 'something new'; AsyncTriggerArc.debug('this is for test'); }
@@ -119,6 +115,15 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         if(triggerContext.getCurrentProcessName() == 'Filter Error 3')
             throw new AsyncTriggerArc.AsyncTriggerArcException('Filter Error 3');
+        
+        if(triggerContext.getCurrentProcessName() == 'Set Process Data')
+        { 
+            triggerContext.setData(10);
+            result = 10;
+        }
+        
+        if(triggerContext.getCurrentProcessName() == 'Get Process Data')
+            if( ((integer) triggerContext.getProcessData('Set Process Data')) != 10) throw new AsyncTriggerArc.AsyncTriggerArcException('Set and Get Process Data Failed');
         
         return result;
         
@@ -999,6 +1004,50 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         system.assert(totalProcesses == 6 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 6 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
         system.assert(executionResult.get('Filter Error 3').status==AsyncTriggerArc.PROCESS_FAILED, 'Expected is Process failed for Filter Error 3');
         
+    }
+    
+     @IsTest static void GetAndSetProcessDataShouldWork(){
+        
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Set Process Data',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+            new ATARC_Process_Setting__mdt(DeveloperName='Get Process Data',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true)
+                };
+                    
+                    
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==2, 'Expected is (totalProcesses 2 totalExecutedProcesses 2) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('Get Process Data').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for Get Process Data');
+
     }
 
     @IsTest static void NoProcessRun(){

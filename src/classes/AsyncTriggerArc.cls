@@ -985,6 +985,9 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         public object getProcessData(string processName) {
             return (customData.containsKey(processName) ? customData.get(processName) : null);
         }
+        public void setData(object data) {
+            customData.put(processName, data);
+        }
         public string getCurrentProcessName() {
             return processName;
         }
