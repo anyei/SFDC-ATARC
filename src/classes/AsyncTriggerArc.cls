@@ -1138,14 +1138,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             get;
             set;
         }
-        public string pSObjectName{
-            get;
-            set;
-        }
-        public string ptriggerEventTxt {
-            get;
-            set;
-        }
         
         public virtual void execute(QueueableContext context) {
             
