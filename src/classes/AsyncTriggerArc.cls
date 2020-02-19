@@ -49,7 +49,7 @@ public class AsyncTriggerArc {
     
     @testVisible static Map < string, object > customData;
     
-    @TestVisible static Map < string, Map < string, integer >> triggerExecTrack;
+    @TestVisible static Map < string, Map < string, Map< string, integer >>> triggerExecTrack;
     
     @TestVisible static Map < string, System.LoggingLevel > logginLevelMap;
 
@@ -75,7 +75,7 @@ public class AsyncTriggerArc {
         
         arqSettings = new Map < string, Map < string, List<ATARC_Process_Setting__mdt> >> ();
         
-        triggerExecTrack = new Map < string, Map < string, integer >> ();
+        triggerExecTrack = new Map < string, Map < string, Map< string, integer >>> ();
         
         processesExecStatuses = new Map < string, AsyncTriggerArcProcessInfo > ();
 
@@ -109,7 +109,6 @@ public class AsyncTriggerArc {
             globalTransactionLoop = Integer.valueof(globalConfigSetting.LoopLimit__c);
         }
                 
-        
         runningAsyncContext = false;
         
     }
@@ -146,14 +145,16 @@ public class AsyncTriggerArc {
     * @method
     * Process the order of the items retrieve from the config settings
     */
-    @TestVisible void processOrder(boolean firstTime) {
+    @TestVisible static void processOrder(boolean firstTime) {
         
         if (orderProcessed != true) {
-            
             Map < string, Map < string, List < integer >>> orderLogicA = new Map < string, Map < string, List < integer >>> ();
             Map < string, Map < string, List < integer >>> orderLogicS = new Map < string, Map < string, List < integer >>> ();
             
-            settings = settings == null ? [select DeveloperName , MasterLabel, ApexHelperClassName__c , BreakIfError__c , Category__c , Debug__c , Debug_Level__c , DependsOnFailure__c , DependsOnSuccess__c , Event__c , IsActive__c , IsAsync__c , Order__c , SObject__c, isolate__c from ATARC_Process_Setting__mdt where isActive__c = true
+            settings = settings == null ? [select DeveloperName , MasterLabel, ApexHelperClassName__c , BreakIfError__c , Category__c , Debug__c , Debug_Level__c , 
+                                           DependsOnFailure__c , DependsOnSuccess__c , Event__c , IsActive__c , IsAsync__c , Order__c , SObject__c, isolate__c,
+                                           Override_Loop_Limit__c, LoopLimit__c
+                                           from ATARC_Process_Setting__mdt where isActive__c = true
 order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTriggerArqSettings__c.GetAll().values();
             
             for (ATARC_Process_Setting__mdt setting: settings) {
@@ -231,8 +232,9 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         globalConfig.triggerContext.newList = newList;
         globalConfig.triggerContext.oldMap = oldmap;
         globalConfig.triggerContext.newMap = newMap;
-        globalConfig.triggerContext.transactionLoop = globalTransactionLoop;
         globalConfig.skipEverything = globalSkip;
+        globalConfig.triggerContext.sObjectName = sObjectName;
+        
               
         //the chain of process to execute should be reset every time 
         //a trigger is executed
@@ -243,6 +245,8 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             ((globalConfig.triggerContext.IsInsert = isInsert) ? 'Insert' : '') + ((globalConfig.triggerContext.isUpdate = isUpdate) ? 'Update' : '') +
             ((globalConfig.triggerContext.isDelete = isDelete) ? 'Delete' : '');
         triggerEventTxt = ((globalConfig.triggerContext.isUndelete = isUndelete) && globalConfig.triggerContext.isAfter ? '' : (globalConfig.triggerContext.isUndelete == true ? 'BeforeUndelete' : triggerEventTxt));
+        globalConfig.triggerContext.eventTxt = triggerEventTxt;
+
     }
     
     /*
@@ -282,7 +286,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
     */
     public void Start() {
         
-        atarcDebug('Start\nTransaction loop tracking:' + getTriggerTrack() +
+        atarcDebug('Start\n' +
                    '\nSOBject:' + sObjectName +
                    '\nEvent:' + triggerEventTxt +
                    '\nRunningOutOfAnAsyncProcess:' + runningAsyncContext +
@@ -300,17 +304,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         if (arqSettings.containsKey(sObjectName) &&
             arqSettings.get(SObjectName).containsKey(triggerEventTxt)
            ) {
-               
-               /********************************/
-               //propagation cancelation feature
-               
-               if (globalConfig.triggerContext.transactionLoop == null || getTriggerTrack() >= globalConfig.triggerContext.transactionLoop || globalConfig.triggerContext.transactionLoop == 0) {
-                   atarcDebug('TRANSACTION LOOP REACHED '+globalConfig.triggerContext.transactionLoop);
-                   return;
-               }
-               
-               updateTriggerTrack();
-               /*********************************/
                
                List < ATARC_Process_Setting__mdt > settings = arqSettings.get(sObjectName).get(triggerEventTxt);
                
@@ -339,7 +332,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
     * usually happens when the execution of all the atarc processes found for a specific trigger/event have been completed
     */
     void Finish(){
-        atarcDebug('Exit Start\nTransaction loop tracking:' + getTriggerTrack() +
+        atarcDebug('Exit Start\n' +
                    '\nSOBject:' + sObjectName +
                    '\nEvent:' + triggerEventTxt +
                    '\nRunningOutOfAnAsyncProcess:' + runningAsyncContext +
@@ -352,26 +345,38 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
     * @method
     * Generate instances of the apex classes listed in the custom settings. 
     */
-    static map < string, AsyncTriggerArcProcessBase > getInstances(AsyncTriggerArcConfig config) {
+    map < string, AsyncTriggerArcProcessBase > getInstances(AsyncTriggerArcConfig config) {
         map < string, AsyncTriggerArcProcessBase > instances = new Map < string, AsyncTriggerArcProcessBase > ();
-        
+        integer globalLoopLimit =  (globalTransactionLoop == null ? 0 :globalTransactionLoop);
         atarcDebug('Generating instances..getInstances');
         for (ATARC_Process_Setting__mdt setting: config.chain) {
             //instantiate the objects
             //and invoke the filter method
             
-            
-            /**********************************/
+            integer loopLimit = setting.LoopLimit__c  == null ? 0 : integer.valueof(setting.LoopLimit__c);
+           
+            /*******************************/
             //simple skip functionality
-            if (canSkip(config.skipEverything, setting)) {
+            if (canSkip(config.skipEverything, setting) )
+            {
                 atarcDebug('BYPASS FOUND getInstances '+setting.DeveloperName);
                 continue;
             }
+			
+            //loop limit controls
+            if((setting.Override_Loop_Limit__c && (loopLimit == 0 || getTriggerTrack(setting.DeveloperName) >= loopLimit) ) ||
+               (setting.Override_Loop_Limit__c != true && (globalLoopLimit == 0 || getTriggerTrack(setting.DeveloperName) >= globalLoopLimit) ) ){
+                   atarcDebug('LIMIT REACHED FOUND getInstances '+setting.DeveloperName);
+                   continue;
+            }
             /***********************************/
+            
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
             AsyncTriggerArcProcessBase instance = (o instanceof AsyncTriggerArcProcessBase ) ?  (AsyncTriggerArcProcessBase) o : null; 
-            if (instance != null)
+            if (instance != null){
                 instances.put(setting.DeveloperName, instance);
+                updateTriggerTrack(setting.DeveloperName, sObjectName, triggerEventTxt);
+            }
         }
         
         return instances;
@@ -381,29 +386,42 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
     * @method
     * Generate instances of the apex classes listed in the custom settings.
     */
-    static map < string, AsyncTriggerArcFEAProcessBase > getFEAInstances(AsyncTriggerArcConfig config, set<string> standardInterface) {
+    map < string, AsyncTriggerArcFEAProcessBase > getFEAInstances(AsyncTriggerArcConfig config, set<string> standardInterface) {
         map < string, AsyncTriggerArcFEAProcessBase > instances = new Map < string, AsyncTriggerArcFEAProcessBase > ();
-        
+        integer globalLoopLimit =  (globalTransactionLoop == null ? 0 : globalTransactionLoop);
         atarcDebug('Generating instances..getFEAInstances');
         for (ATARC_Process_Setting__mdt setting: config.chain) {
             //instantiate the objects
             //and invoke the filter method
-            
+            //
+            integer loopLimit = setting.LoopLimit__c  == null ? 0 : integer.valueof(setting.LoopLimit__c);
             /**********************************/
             //simple skip functionality
-            if (canSkip(config.skipEverything, setting)) {
+            if (canSkip(config.skipEverything, setting) )
+            {
                 atarcDebug('BYPASS FOUND getFEAInstances '+setting.DeveloperName);
                 continue;
             }
+			            
+            //loop limit controls
+            if((setting.Override_Loop_Limit__c && (loopLimit == 0 || getTriggerTrack(setting.DeveloperName) >= loopLimit) ) ||
+               (setting.Override_Loop_Limit__c != true && (globalLoopLimit == 0 || getTriggerTrack(setting.DeveloperName) >= globalLoopLimit) ) ){
+                   atarcDebug('LIMIT REACHED FOUND getFEAInstances '+setting.DeveloperName);
+                   continue;
+            }
             /***********************************/
+            
+            //not sure if this could ever happen but in any case let's put this check here
             if(standardInterface.contains(setting.DeveloperName)){
                 continue;
             }
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
             AsyncTriggerArcFEAProcessBase instance = (o instanceof AsyncTriggerArcFEAProcessBase) ? (AsyncTriggerArcFEAProcessBase)o: null;
             
-            if (instance != null)
+            if (instance != null){
                 instances.put(setting.DeveloperName, instance);
+                updateTriggerTrack(setting.DeveloperName, sObjectName, triggerEventTxt);
+            }
         }
         
         return instances;
@@ -656,7 +674,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
     //@method
     //Evaluates the apex classes from the custom settings to send it to the fea pattern or the regular execute method
     /*****************************/
-    static void Eval(AsyncTriggerArcConfig config, map < string, AsyncTriggerArcProcessBase > instances, map < string, AsyncTriggerArcFEAProcessBase > feaInstances) {
+    void Eval(AsyncTriggerArcConfig config, map < string, AsyncTriggerArcProcessBase > instances, map < string, AsyncTriggerArcFEAProcessBase > feaInstances) {
         atarcDebug('Preparing to start invoke processes');
         
         instances =  getInstances(config);
@@ -737,7 +755,9 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             
             //after class is executed then get the output if any
             //after preparing data for the triggerContext upper loop should run the next process in line.
-            object output = RunClass(instances, feaInstances, config, setting);
+            object output = null;
+            if(instances.containsKey(setting.DeveloperName) || feaInstances.containsKey(setting.DeveloperName))
+                RunClass(instances, feaInstances, config, setting);
             
             //cleaning the heap a little bit
             if(instances.containsKey(setting.DeveloperName))
@@ -836,22 +856,25 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         
     }
     
-    void updateTriggerTrack() {
+    static void updateTriggerTrack(string processName, string sObjectName, string triggerEventTxt) {
         if (!triggerExecTrack.containsKey(sObjectName))
-            triggerExecTrack.put(sObjectName, new Map < string, integer > ());
+            triggerExecTrack.put(sObjectName, new Map < string, Map<string, integer >> ());
         
+        if(!triggerExecTrack.get(sObjectName).containsKey(triggerEventTxt))
+            triggerExecTrack.get(sObjectName).put(triggerEventTxt, new Map<string, integer>());
         
-        triggerExecTrack.get(SObjectName).put(
-            triggerEventTxt,
+        triggerExecTrack.get(SObjectName).get(triggerEventTxt).put(
+            processName,
             (
-                triggerExecTrack.get(sObjectName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerEventTxt) + 1 : 1
+                triggerExecTrack.get(sObjectName).get(triggerEventTxt).containsKey(processName) ? triggerExecTrack.get(sObjectName).get(triggerEventTxt).get(processName) + 1 : 1
             ));
     }
     
-    integer getTriggerTrack() {
+    integer getTriggerTrack(string processName) {
         return (
             triggerExecTrack.containsKey(sObjectName) &&
-            triggerExecTrack.get(sObjectName).containsKey(triggerEventTxt) ? triggerExecTrack.get(sObjectName).get(triggerEventTxt) : 0
+            triggerExecTrack.get(sObjectName).containsKey(triggerEventTxt) && 
+            triggerExecTrack.get(sObjectName).get(triggerEventTxt).containsKey(processName) ? triggerExecTrack.get(sObjectName).get(triggerEventTxt).get(processName) : 0
         );
     }
     
@@ -946,11 +969,12 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         }
         public integer transactionLoop {
             get {
-                return tloop;
+                return integer.valueof(getSetting().LoopLimit__c);
             }
             set {
-                tloop = value;
-                globalTransactionLoop = value;
+                ATARC_Process_Setting__mdt setting = getSetting();
+                setting.LoopLimit__c= value;
+                setting.Override_Loop_Limit__c = value > 0;
             }
         }
         protected integer tloop {
@@ -977,10 +1001,25 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         protected string processName;
         protected boolean debugMode = false;
         protected string debugLevel = DEFAULT_LOGGIN_LEVEL;
+        protected string sobjectName;
+        protected string eventTxt;
+        
+        
+        private ATARC_Process_Setting__mdt getSetting(){
+            ATARC_Process_Setting__mdt result = null;
+                for(ATARC_Process_Setting__mdt s : arqSettings.get(sObjectName).get(eventTxt))
+                {
+                    if(s.developerName == processName)
+                        result =s;
+                }
+                return result;
+        }
         
         public AsyncTriggerArcContext() {
             
         }
+        
+        
         
         public object getProcessData(string processName) {
             return (customData.containsKey(processName) ? customData.get(processName) : null);
@@ -1103,11 +1142,19 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             get;
             set;
         }
+        public string pSObjectName{
+            get;
+            set;
+        }
+        public string ptriggerEventTxt {
+            get;
+            set;
+        }
         
         public virtual void execute(QueueableContext context) {
             
             atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg + '\n'+currentSetting.DeveloperName );
-            
+            processOrder(true);
             //instances = instances.containsKey(currentSetting.DeveloperName) ? instances : new Map<string,AsyncTriggerArcProcessBase>() ; 
             //feaInstances = feaInstances.containsKey(currentSetting.DeveloperName) ? feaInstances : new Map<string, AsyncTriggerArcFEAProcessBase>() ;
             
@@ -1119,8 +1166,10 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             //of the this context will be executed within this transaction unfortunately)
             runningAsyncContext = true;
             
+            
             //tracking of the executed processes so far
             processesExecStatuses = pstatuses;
+            updateTriggerTrack(currentSetting.DeveloperName, config.triggerContext.sobjectName, config.triggerContext.eventTxt );
             skips = pSkips;
                        
             boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
@@ -1131,7 +1180,9 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                         }, fromAsync);
             
             pushToProcessStack(currentSetting);
-            object output = RunClass(instances,feaInstances, config, currentSetting);
+            object output = null;
+            if(instances.containsKey(currentSetting.DeveloperName) || feaInstances.containsKey(currentSetting.DeveloperName))
+               output  = RunClass(instances,feaInstances, config, currentSetting);
             
             //store the output of the current invocation
             customData.put(currentSetting.DeveloperName, output);

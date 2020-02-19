@@ -192,6 +192,18 @@
         <type>Checkbox</type>
     </fields>
     <fields>
+        <fullName>LoopLimit__c</fullName>
+        <defaultValue>1</defaultValue>
+        <externalId>false</externalId>
+        <fieldManageability>DeveloperControlled</fieldManageability>
+        <label>LoopLimit</label>
+        <precision>18</precision>
+        <required>false</required>
+        <scale>0</scale>
+        <type>Number</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
         <fullName>Order__c</fullName>
         <externalId>false</externalId>
         <fieldManageability>DeveloperControlled</fieldManageability>
@@ -201,6 +213,14 @@
         <scale>0</scale>
         <type>Number</type>
         <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Override_Loop_Limit__c</fullName>
+        <defaultValue>false</defaultValue>
+        <externalId>false</externalId>
+        <fieldManageability>DeveloperControlled</fieldManageability>
+        <label>Override Loop Limit</label>
+        <type>Checkbox</type>
     </fields>
     <fields>
         <fullName>SObject__c</fullName>
@@ -214,5 +234,13 @@
     </fields>
     <label>ATARC Process Setting</label>
     <pluralLabel>ATARC Process Settings</pluralLabel>
+    <validationRules>
+        <fullName>OverrideLoopLimit</fullName>
+        <active>true</active>
+        <description>LoopLimit has to be populated if OverideLoopLimit is checked.</description>
+        <errorConditionFormula>Override_Loop_Limit__c &amp;&amp; (isnull( LoopLimit__c ) || LoopLimit__c &lt;= 0 )</errorConditionFormula>
+        <errorDisplayField>LoopLimit__c</errorDisplayField>
+        <errorMessage>LoopLimit has to be greater than 0 if Override Loop Limit is checked.</errorMessage>
+    </validationRules>
     <visibility>Public</visibility>
 </CustomObject>

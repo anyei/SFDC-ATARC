@@ -33,13 +33,17 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
 */ 
     protected override void action(SObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
         
+        
         triggerContext.debug('current processes ' + triggerContext.getCurrentProcessName());
+        
+        system.debug('algo from action '+ triggerContext.getCurrentProcessName());
         
          if(triggerContext.getCurrentProcessName() == 'Filter Error 2')
             throw new AsyncTriggerArc.AsyncTriggerArcException('Filter Error 2');
         
         if(triggerContext.getCurrentProcessName() == 'Skip 5')
             triggerContext.bypass(AsyncTriggerArc.PROCESS_SKIP, 'Skip 6');
+        
         
     }
     
@@ -79,24 +83,33 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         
         if(triggerContext.getCurrentProcessName() == 'Test Process 11'){
-            result = (string)triggerContext.getProcessData('Test Process 11');
+            result = triggerContext.getProcessData('Test Process 11');
             if(result == null){               
-                result = '1';
+                result = 1;
             }
-            else
-                result = string.valueof(integer.valueof(result) + 1);
+            else{
+                result = integer.valueof(result) + 1;
+            }
         }
         
         
         
         if(triggerContext.getCurrentProcessName() == 'Test Process 12'){
-            result = (string)triggerContext.getProcessData('Test Process 12');
+            result = triggerContext.getProcessData('Test Process 12');
             if(result == null){ 
                 triggerContext.transactionLoop = 2;
-                result = '1';
+                result = 1;
             }
             else
-                result = string.valueof(integer.valueof(result) + 1);
+                result = integer.valueof(result) + 1;
+        }
+        if(triggerContext.getCurrentProcessName() == 'Test Process Recursive'){
+            result = triggerContext.getProcessData('Test Process Recursive');
+            if(result == null){ 
+                result = 1;
+            }
+            else
+                result = integer.valueof(result) + 1;
         }
         
         if(triggerContext.getCurrentProcessName() == 'Test Process 13'){
@@ -130,7 +143,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     }
     
     @testSetup static void setupSettings(){
-        ATARC_Global_Setting__c aSetting = new ATARC_Global_Setting__c(debug__c = true, LoopLimit__c=1);
+        ATARC_Global_Setting__c aSetting = new ATARC_Global_Setting__c(debug__c = false, LoopLimit__c=1);
         insert aSetting;
     }
     
@@ -166,7 +179,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
             null);
         AsyncTriggerArc.settings = setupData();
         test.starttest();    
-        atarc.processOrder(true);
+        AsyncTriggerArc.processOrder(true);
         test.stoptest();
         
         system.assert(AsyncTriggerArc.arqSettings.get('Opportunity').get('BeforeInsert').get(0).DeveloperName == 'Test Process 3','Expected is "Test Process 3" is the first element in the list, current is '+
@@ -554,10 +567,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         }
         system.assert(totalProcesses == 1 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 1 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
         
-        system.assert(atarc.globalConfig.triggerContext.getProcessData('Test Process 11') == '1', 'Expected is "1" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process 11')+'"');
-        
-        system.assert(atarc.globalConfig.triggerContext.transactionLoop ==1, 'Expected is 1 as it ran  current is '+atarc.globalConfig.triggerContext.transactionLoop);
-        
+        system.assert(atarc.globalConfig.triggerContext.getProcessData('Test Process 11') == 1, 'Expected is "1" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process 11')+'"');        
         
     }
     
@@ -603,7 +613,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         }
         system.assert(totalProcesses == 1 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 1 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
         
-        system.assert(atarc.globalConfig.triggerContext.getProcessData('Test Process 12') == '2', 'Expected is "2" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process 11')+'"');
+        system.assert(atarc.globalConfig.triggerContext.getProcessData('Test Process 12') == 2, 'Expected is "2" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process 11')+'"');
         
         system.assert(atarc.globalConfig.triggerContext.transactionLoop ==2, 'Expected is 2 as it ran  current is '+atarc.globalConfig.triggerContext.transactionLoop);
         
@@ -1003,6 +1013,53 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         system.assert(totalProcesses == 6 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 6 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
         system.assert(executionResult.get('Filter Error 3').status==AsyncTriggerArc.PROCESS_FAILED, 'Expected is Process failed for Filter Error 3');
+        
+    }
+    
+    @IsTest static void transactionLoopShouldRun4Times(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process Recursive',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, Override_Loop_Limit__c=true, LoopLimit__c=4)
+                
+                
+                };
+                    
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            false, //before
+            true, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new Opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        AsyncTriggerArc.settings = testSettings;
+        
+        string errorMessage = '';
+        
+        test.startTest();
+        
+        atarc.Start();//first run
+        atarc.Start();//second run
+        atarc.Start();//third run
+        atarc.Start();//third run
+        
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        system.assert(totalProcesses == 1 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 1 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        
+        system.assert(integer.valueof(atarc.globalConfig.triggerContext.getProcessData('Test Process Recursive') ) == 4, 'Expected is "4" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process Recursive')+'"');        
         
     }
     
