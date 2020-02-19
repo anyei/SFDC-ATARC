@@ -499,7 +499,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                                 UpdateStatusFailed(setting.DeveloperName);
                                 UpdateProcessTime(setting.DeveloperName, totalTime);
                                 
-                                debug('EXCEPTION!!:\n' + err.getMessage());
+                                debug('EXCEPTION!!:\nCause:'+err.getCause()+'\nLine:'+err.getLineNumber()+'\nMessage:' + err.getMessage() + '\nStack:'+ err.getStackTraceString());
                                 processesStack.remove(processesStack.size() - 1);
                                 noError = false;
                                 /**********************************/
@@ -590,7 +590,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                             UpdateStatusFailed(setting.DeveloperName);
                             UpdateProcessTime(setting.DeveloperName, totalTime);
 
-                            debug('EXCEPTION!!:\n' + err.getMessage());
+                            debug('EXCEPTION!!:\nCause:'+err.getCause()+'\nLine:'+err.getLineNumber()+'\nMessage:' + err.getMessage() + '\nStack:'+ err.getStackTraceString());
                             processesStack.remove(processesStack.size() - 1);
                             noError = false;
                             
@@ -757,7 +757,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             //after preparing data for the triggerContext upper loop should run the next process in line.
             object output = null;
             if(instances.containsKey(setting.DeveloperName) || feaInstances.containsKey(setting.DeveloperName))
-                RunClass(instances, feaInstances, config, setting);
+                output = RunClass(instances, feaInstances, config, setting);
             
             //cleaning the heap a little bit
             if(instances.containsKey(setting.DeveloperName))
@@ -842,7 +842,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             UpdateStatusFailed(setting.DeveloperName);
             UpdateProcessTime(setting.DeveloperName, totalTime);
 
-            debug('EXCEPTION!!:\n' + err.getMessage());
+            debug('EXCEPTION!!:\nCause:'+err.getCause()+'\nLine:'+err.getLineNumber()+'\nMessage:' + err.getMessage() + '\nStack:'+ err.getStackTraceString());
             
             /**********************************/
             //break transaction if error feature
@@ -976,10 +976,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                 setting.LoopLimit__c= value;
                 setting.Override_Loop_Limit__c = value > 0;
             }
-        }
-        protected integer tloop {
-            get;
-            set;
         }
         public List < SObject > newList {
             get;
