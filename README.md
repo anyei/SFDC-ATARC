@@ -16,6 +16,8 @@ ATARC is a framework, toolset and guidelines (i'm not sure how to call it actual
 
 With ATARC besides what I just said above, you could control the order of execution of your processes, make them active or inactivate whenever the heck you want and and also control dependencies execution.... all of this on runtime! This is the overall idea, I hope you get it, and also there are other cool features I have included in the framework.
 
+### Check the https://github.com/anyei/SFDC-ATARC/wiki/Features section to have an idea of the overall features.
+
 ### Install Components into your org
 
 ##### Deploy to Salesforce Button
