@@ -637,7 +637,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                 //simple skip functionality
                 if (canSkip(config.skipEverything, setting)) {
                     atarcDebug('BYPASS FOUND execute '+setting.DeveloperName);                    
-                    break;
+                    continue;
                 }
                 /***********************************/
                 
