@@ -74,7 +74,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         if(triggerContext.getCurrentProcessName() == 'Test Process 10'){
             result = (string)triggerContext.getProcessData('Test Process 10');
             if(result == null){
-                triggerContext.transactionLoop = 3;
+                triggerContext.LoopLimit = 3;
                 result = '1';
             }
             else
@@ -97,7 +97,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         if(triggerContext.getCurrentProcessName() == 'Test Process 12'){
             result = triggerContext.getProcessData('Test Process 12');
             if(result == null){ 
-                triggerContext.transactionLoop = 2;
+                triggerContext.LoopLimit = 2;
                 result = 1;
             }
             else
@@ -521,7 +521,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         system.assert(atarc.globalConfig.triggerContext.getProcessData('Test Process 10') == '3', 'Expected is "3" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process 10')+'"');
         
-        system.assert(atarc.globalConfig.triggerContext.transactionLoop ==3, 'Expected is 3 current is '+atarc.globalConfig.triggerContext.transactionLoop);
+        system.assert(atarc.globalConfig.triggerContext.LoopLimit ==3, 'Expected is 3 current is '+atarc.globalConfig.triggerContext.LoopLimit);
         
         
     }
@@ -615,7 +615,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         system.assert(atarc.globalConfig.triggerContext.getProcessData('Test Process 12') == 2, 'Expected is "2" Current is "'+atarc.globalConfig.triggerContext.getProcessData('Test Process 11')+'"');
         
-        system.assert(atarc.globalConfig.triggerContext.transactionLoop ==2, 'Expected is 2 as it ran  current is '+atarc.globalConfig.triggerContext.transactionLoop);
+        system.assert(atarc.globalConfig.triggerContext.LoopLimit ==2, 'Expected is 2 as it ran  current is '+atarc.globalConfig.triggerContext.LoopLimit);
         
         
     }

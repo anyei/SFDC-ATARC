@@ -967,7 +967,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             get;
             protected set;
         }
-        public integer transactionLoop {
+        public integer LoopLimit {
             get {
                 return integer.valueof(getSetting().LoopLimit__c);
             }
