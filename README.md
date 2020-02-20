@@ -44,7 +44,7 @@ But, please read the <a href="https://github.com/anyei/SFDC-ATARC/wiki/ATARC-Phy
 
 
 ## Setup a record in ATARC Global Setting
-The custom setting ATARC Global Setting is a hierarchy type of custom setting, you add a default organization value record and populate the Debug, SkipAll and LoopLimit fields. LoopLimit in particular, gives you the ability to define how many times triggers will do recursion, which its highly recommended to just set this value to 1. In the other hand, you can turn off all the processes just by setting the SkipAll field to true, false should enable back the processes.
+The custom setting ATARC Global Setting is a hierarchy type of custom setting, you add a default organization value record and populate the Debug, SkipAll and LoopLimit fields. LoopLimit in particular, gives you the ability to define how many times triggers will do recursion, which its highly recommended to just set this value to 1 by the way. In the other hand, you can turn off all the processes just by setting the SkipAll field to true, false should enable back the processes.
 
 
 ## The simplest form of Implementation & Usage
