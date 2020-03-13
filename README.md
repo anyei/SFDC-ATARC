@@ -56,7 +56,7 @@ Let's take a look at how the triggers where you want to implement ATARC should b
 
 ####  Create an instance of the ATARC engine within the trigger
 
-With a fresh trigger with no code, you just need to instantiate an ATARC object passing the necessary parameters:
+With a fresh trigger with no code, you just need to instantiate AsyncTriggerArc class:
 
 ```java
 trigger ATARCOpportunityTrigger on Opportunity (before insert, before update, before delete, after insert, after update, after delete, after undelete) {
