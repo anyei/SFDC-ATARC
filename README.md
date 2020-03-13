@@ -66,7 +66,7 @@ trigger ATARCOpportunityTrigger on Opportunity (before insert, before update, be
 }
 ```
 
-In the code above, the constructor accept a bunch of parameters, mainly taken from the **trigger** context variable. The call to the **start** method makes the engine run (this is also very important). Only one trigger is enought and highly recommended, but if you have multiple triggers as well make sure they are attached to different events to make sure you can control the order of execution.
+In the code above, the constructor parameterless. The call to the **start** method makes the engine run (this is also very important). Only one trigger is enought and highly recommended, but if you have multiple triggers as well make sure they are attached to different events to make sure you can control the order of execution.
 
 Now that we have our ATARC instance within our trigger, let's build processes to inject them into this trigger. Apex classes should be created and of course extends from a base class.
 
