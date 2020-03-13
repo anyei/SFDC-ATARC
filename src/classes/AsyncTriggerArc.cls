@@ -215,6 +215,12 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
     }
     
     /*
+     * @constructor 0
+     */
+    public AsyncTriggerArc(){
+        this(trigger.isBefore, trigger.isAfter, trigger.isInsert, trigger.isUpdate, trigger.isDelete, trigger.isUndelete, trigger.new,trigger.old, trigger.newmap, trigger.oldmap);
+    }
+    /*
     * @constructor 1
     * 
     */

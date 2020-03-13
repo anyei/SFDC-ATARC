@@ -1063,6 +1063,49 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
     }
     
+    @IsTest static void AsyncIsIsolate(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='Test Process Isolate',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=true,Isolate__c=true)
+                
+                
+                };
+                    
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            false, //before
+            true, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new Opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        AsyncTriggerArc.settings = testSettings;
+        
+        string errorMessage = '';
+        
+        test.startTest();
+        
+        atarc.Start();//first run
+       
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ? 1 : 0);
+        }
+        system.assert(totalProcesses == 1 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 1 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        
+        
+    }
+    
      @IsTest static void GetAndSetProcessDataShouldWork(){
         
         
