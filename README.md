@@ -8,15 +8,15 @@ Imagine you could found a framework that allows you to fight against the de-fact
 
 I understand there are many good trigger frameworks out there already but I also understand none of them treated the topic with this approach. 
 
-**Please go to our wiki for a more detailed information and api reference!** https://github.com/anyei/SFDC-ATARC/wiki
+**Please go to our wiki for a more detailed information and api reference!** http://atarc.io/Reference
 
 # What is ATARC
 
-ATARC is a framework, toolset and guidelines (i'm not sure how to call it actually) created with that single purpose in mind, to optimize process executions within triggers hence maximize resources availability within a DML transaction.
+ATARC is an apex trigger handler framework created with that single purpose in mind, to optimize process executions within triggers hence maximize resources availability within a DML transaction.
 
 With ATARC besides what I just said above, you could control the order of execution of your processes, make them active or inactivate whenever the heck you want and and also control dependencies execution.... all of this on runtime! This is the overall idea, I hope you get it, and also there are other cool features I have included in the framework.
 
-### Check the https://github.com/anyei/SFDC-ATARC/wiki/Features section to have an idea of the overall features.
+### Check http://atarc.io site to have an idea of the overall features.
 
 ### Install Components into your org
 
@@ -40,7 +40,7 @@ Here a resume of the steps needed to implement this framework:
 * Setup a record in ATARC Global Setting custom setting.
 * Add a record to the custom metadata type ATARC Process Setting with the appropriate values to make sure the class is picked up by the engine, actually this is how the engine knows what class implementation to use in a specific object/event combination.
 
-But, please read the <a href="https://github.com/anyei/SFDC-ATARC/wiki/ATARC-Phylosophy-(ATARC-BIBLE)">ATARC BIBLE</a> so that you get the phylosophy of the framework. Including the best practices, suggestions and considerations when using ATARC. https://github.com/anyei/SFDC-ATARC/wiki/ATARC-Phylosophy-(ATARC-BIBLE)
+But, please visite http://atarc.io so that you get the phylosophy of the framework. Including the best practices, suggestions and considerations when using ATARC. http://atarc.io/Reference
 
 
 ## Setup a record in ATARC Global Setting
@@ -59,19 +59,7 @@ With a fresh trigger with no code, you just need to instantiate an ATARC object 
 ```java
 trigger ATARCOpportunityTrigger on Opportunity (before insert, before update, before delete, after insert, after update, after delete, after undelete) {
     
-    AsyncTriggerArc atarc = new AsyncTriggerArc(
-                                             trigger.isBefore, 
-                                              trigger.isAfter, 
-                                              trigger.isInsert, 
-                                              trigger.isUpdate, 
-                                              trigger.isDelete,
-                                              trigger.isUndelete,
-                                              trigger.new,
-                                              trigger.old,
-                                              trigger.newmap, 
-                                              trigger.oldmap);
-    
-    atarc.start();
+    new AsyncTriggerArc().start();
 
 }
 ```
@@ -154,7 +142,7 @@ So what we need is an entry in the custom metadata type "ATARC Process Setting",
 
 So, the **Custom Metadata Record Name** (api name is DeveloperName) field is an identifier, you can use this field to give a name to the process but be aware it should respect the custom metadata type name rules (i guess it should be unique and not having double underscores together and so on...), the rest of the fields are sort of self explanatories but i'll include a section dedicated to the meaning of each of these fields later. For now just take a good look at this table.
 
-**Here the custom metadata type and custom setting reference for more info https://github.com/anyei/SFDC-ATARC/wiki/Custom--Metadata-Types-and-Custom-Settings-Reference**
+**Here the custom metadata type and custom setting reference for more info http://atarc.io/Reference**
 
 So.....
 
