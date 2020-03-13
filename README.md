@@ -1,4 +1,6 @@
-# ATARC
+# ATARC ![ATARC](http://atarc.io/features/ExecuteLogo.svg) 
+
+![ATARC](http://atarc.io/features/landingPageOverview.svg)
 
 Inbound request ahead but Opportunity triggers are too many not sure where to add this new feature!!! 
 
@@ -8,7 +10,7 @@ Imagine you could found a framework that allows you to fight against the de-fact
 
 I understand there are many good trigger frameworks out there already but I also understand none of them treated the topic with this approach. 
 
-**Please go to our wiki for a more detailed information and api reference!** http://atarc.io/Reference
+**Please go to atarc site for a more detailed information and api reference!** http://atarc.io/Reference
 
 # What is ATARC
 
