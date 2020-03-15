@@ -168,6 +168,14 @@
         </valueSet>
     </fields>
     <fields>
+        <fullName>General_Availability__c</fullName>
+        <defaultValue>true</defaultValue>
+        <externalId>false</externalId>
+        <fieldManageability>DeveloperControlled</fieldManageability>
+        <label>General Availability</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
         <fullName>IsActive__c</fullName>
         <defaultValue>false</defaultValue>
         <externalId>false</externalId>

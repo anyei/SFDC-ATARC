@@ -7,7 +7,7 @@
 *           order of execution, a flag to make it active or not (if not active it will not run), a flag to force it to run
 *           as queueable, a field to control dependencies (process A is dependent on process B to run, if process B does not run or 
 *           has an exception in the code process A will not run) and in addition to all that this also has the capability to pass output from one process
-*           to the next one within the same transaction.  
+*          to the next one within the same transaction.  
 *  
 * Test Classes: AsyncTriggerArcTest
 */
@@ -41,7 +41,9 @@ public class AsyncTriggerArc {
     //Salesforce has a weird suggestion on how to test custom metadata type related code
     //I think this is a better solution, this field should be populated by the unit test
     //It will be populated by the real code at runtime.
-	@TestVisible static List < ATARC_Process_Setting__mdt > settings;    
+    @TestVisible static List < ATARC_Process_Setting__mdt > settings; 
+    
+    @TestVisible static map<id, map<string, List<ATARC_Process_Availability_Rule__mdt>>> settingRulesMap;   
    
     @testVisible static Map < string, set < string > > skips;
     
@@ -54,6 +56,9 @@ public class AsyncTriggerArc {
     @TestVisible static Map < string, System.LoggingLevel > logginLevelMap;
 
     @TestVisible static List< AsyncTriggerArcDebugStackSetting > processesStack;
+    
+    @TestVisible static Id CurrentUserId;
+    @TestVisible static Id CurrentProfileId;
     
     static boolean orderProcessed;
     static boolean runningAsyncContext;
@@ -111,6 +116,10 @@ public class AsyncTriggerArc {
                 
         runningAsyncContext = false;
         
+        currentUserId = userinfo.getUserId();
+        
+        currentProfileId = userinfo.getProfileId();
+        
     }
     
     static AsyncTriggerArcQueueable RequestQueuable() {
@@ -153,7 +162,8 @@ public class AsyncTriggerArc {
             
             settings = settings == null ? [select DeveloperName , MasterLabel, ApexHelperClassName__c , BreakIfError__c , Category__c , Debug__c , Debug_Level__c , 
                                            DependsOnFailure__c , DependsOnSuccess__c , Event__c , IsActive__c , IsAsync__c , Order__c , SObject__c, isolate__c,
-                                           Override_Loop_Limit__c, LoopLimit__c
+                                           Override_Loop_Limit__c, LoopLimit__c, General_Availability__c,(select DeveloperName, Availability__c, Custom_Scope_Filter__c, Custom_Scope_Filter_Value__c,
+                                                                                 Scope__c , Scope_Id_Value__c from ATARC_Process_Availability_Rules__r where IsActive__c=true)
                                            from ATARC_Process_Setting__mdt where isActive__c = true
 order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTriggerArqSettings__c.GetAll().values();
             
@@ -173,18 +183,115 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                     
                 }
                 
-                
-                
             }
             
             atarcDebug('Config loaded\n' + settings.size());
         }
         
-        
-        
-        
         orderProcessed = true;
     }
+    static map<string, set<id> > ParseScopesGeneralAvailability(List<ATARC_Process_Availability_Rule__mdt> rules, map<id, map<string, map<string,object> > > filterDataObj, set<string> fields){
+        map<string, set<id> > scopeIds= new map<string, set<id> >();
+        for(ATARC_Process_Availability_Rule__mdt rule : rules){
+            if(!scopeIds.containsKey(rule.Scope__c)) scopeIds.put(rule.Scope__c, new set<id>());
+            try{
+                if(rule.Custom_Scope_Filter__c != true) scopeIds.get(rule.scope__c).add(rule.Scope_Id_Value__c);
+                if(rule.Custom_Scope_Filter__c && !string.isBlank(rule.Custom_Scope_Filter_Value__c) ){
+                    filterDataObj.put(rule.id, new map<string, map<string, object>>());
+                    object result = JSON.deserializeUntyped(rule.Custom_Scope_Filter_Value__c); 
+                    if(result instanceof list<object>){
+                    list<object> filterDataList = (list<object>) result;
+                        for(object o : filterDataList){
+                            if(o instanceof map<string, object>){
+                                map<string, object> filterData = (map<string,object>)o;
+                                filterDataObj.get(rule.id).put(string.valueof(filterData.get('field')), filterData);
+                                fields.add(string.valueof(filterData.get('field')));
+                            }
+                        }
+                    }
+                    
+                }
+            }catch(Exception err){ atarcDebug(err.getMessage());}
+        }
+        return scopeIds;
+    }
+    static map<string, set<id> > GetScopesGeneralAvailability(map<string, set<id> > scopes, set<string> fields, User currentUser){
+        id userid = userinfo.getUserId();
+        map<string, set<id> > existingScopes = new map<string, set<id> >();
+        if( (scopes.containsKey('Group') && scopes.get('Group').size() > 0) || (scopes.containsKey('Queue') && scopes.get('Queue').size() > 0) ){
+            set<id> groupsAndQueues = new set<id>();
+            if(scopes.containsKey('Group'))groupsAndQueues.addall(scopes.get('Group'));
+            if(scopes.containsKey('Queue'))groupsAndQueues.addall(scopes.get('Queue'));
+            for(GroupMember gm : [select Group.Type, GroupId, UserOrGroupId from GroupMember where GroupId in :groupsAndQueues and UserOrGroupId =:userid] ){
+                if(!existingScopes.containsKey(gm.Group.Type)) existingScopes.put(gm.Group.Type, new set<id>());
+                existingScopes.get(gm.Group.Type).add(gm.GroupId);
+            }
+        }
+        if(scopes.containsKey('PermissionSet') && scopes.get('PermissionSet').size() > 0){
+            for(PermissionSetAssignment psa : [select Assigneeid, PermissionSetId from PermissionSetAssignment where PermissionSetId in :scopes.get('PermissionSet') and AssigneeId=:userid]){
+                if(!existingScopes.containsKey('PermissionSet')) existingScopes.put('PermissionSet', new set<id>());
+                existingScopes.get('PermissionSet').add(psa.PermissionSetId);
+            }
+        }
+        if(scopes.containsKey('Profile') && scopes.get('Profile').size() > 0){
+            if(!existingScopes.containsKey('Profile')) existingScopes.put('Profile', new set<id>());
+                existingScopes.get('Profile').add(currentProfileId);
+        }
+        if(scopes.containsKey('User') && scopes.get('User').size() > 0){
+            if(!existingScopes.containsKey('User')) existingScopes.put('User', new set<id>());
+            existingScopes.get('User').add(currentUserId);
+            
+            if(fields.size() > 0){
+                currentUser = database.query('select '+string.join(new list<string>(fields),',') + ' from User where id=:currentUserId');
+            }
+        }
+            
+        
+        return existingScopes;
+    }
+    
+    static map<id, map<string, List<ATARC_Process_Availability_Rule__mdt>>> MatchRulesWithProcess(List<ATARC_Process_Setting__mdt> settings){
+        List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>();
+        map<id, map<string, List<ATARC_Process_Availability_Rule__mdt>>> result = new map<id, map<string, List<ATARC_Process_Availability_Rule__mdt>>>();
+        map<id, map<string, map<string, object> > > fieldsMapping = new map<id, map<string, map<string, object> > >();
+        set<string> allfields = new set<string>();
+        User currentUser = new User();
+        map<string, set<id>> scopeIds;
+        map<string, set<id>> existingScopeIds;
+        for(ATARC_Process_Setting__mdt setting:settings){
+           if(setting.ATARC_Process_Availability_Rules__r != null && setting.ATARC_Process_Availability_Rules__r.size() > 0) allrules.addall(setting.ATARC_Process_Availability_Rules__r);
+        }
+        scopeIds = ParseScopesGeneralAvailability(allrules, fieldsMapping, allfields);
+        if(scopeIds != null && scopeIds.size() > 0) existingScopeIds = GetScopesGeneralAvailability(scopeIds, allfields, currentUser);
+        
+        for(ATARC_Process_Availability_Rule__mdt rule : allrules){
+            if(existingScopeIds.containsKey(rule.Scope__c) && existingScopeIds.get(rule.Scope__c).contains(rule.Scope_Id_Value__c)) {
+                if(!result.containsKey(rule.ATARC_Process_Setting__c)) result.put(rule.ATARC_Process_Setting__c, new map<string, list<ATARC_Process_Availability_Rule__mdt>>());
+                if(!result.get(rule.ATARC_Process_Setting__c).containsKey(rule.Availability__c))result.get(rule.ATARC_Process_Setting__c).put(rule.Availability__c, new list<ATARC_Process_Availability_Rule__mdt>() );
+                result.get(rule.ATARC_Process_Setting__c).get(rule.Availability__c).add(rule);
+            }
+            if(rule.Custom_Scope_Filter__c & rule.Scope__c == 'User'){
+                boolean condition = fieldsMapping.containsKey(rule.id) && fieldsMapping.get(rule.id).size() > 0;
+                if(condition) for(string field : fieldsMapping.get(rule.id).keyset()){
+                    if(fieldsMapping.get(rule.id).get(field).containsKey('value')){
+                       object v = fieldsMapping.get(rule.id).get(field).get('value');
+                        string op = fieldsMapping.get(rule.id).get(field).containsKey('op') ? string.valueof(fieldsMapping.get(rule.id).get(field).get('op')): null;
+                        object fv = currentUser.get(field);
+                        condition = EvaluateFieldValueWithOp(condition, v, fv, op);
+                     }
+                 }
+                if(condition) {
+                    if(!result.containsKey(rule.ATARC_Process_Setting__c)) result.put(rule.ATARC_Process_Setting__c, new map<string, list<ATARC_Process_Availability_Rule__mdt>>());
+                    if(!result.get(rule.ATARC_Process_Setting__c).containsKey(rule.Availability__c))result.get(rule.ATARC_Process_Setting__c).put(rule.Availability__c, new list<ATARC_Process_Availability_Rule__mdt>() );
+                    result.get(rule.ATARC_Process_Setting__c).get(rule.Availability__c).add(rule);
+                }
+            }
+         }
+            
+        return result;
+    }
+    
+    
     
     /*
     * @method
@@ -315,6 +422,8 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                
                atarcDebug('Event match found:' + triggerEventTxt + '\nTotal processes:' + settings.size());
                
+               settingRulesMap = MatchRulesWithProcess(settings);
+               
                for (ATARC_Process_Setting__mdt setting: settings) {
                    globalConfig.Chain.add(setting);
                    atarcDebug(setting.DeveloperName);
@@ -360,20 +469,32 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             //and invoke the filter method
             
             integer loopLimit = setting.LoopLimit__c  == null ? 0 : integer.valueof(setting.LoopLimit__c);
-           
+            boolean continueFlag = false;
             /*******************************/
             //simple skip functionality
             if (canSkip(config.skipEverything, setting) )
             {
                 atarcDebug('BYPASS FOUND getInstances '+setting.DeveloperName);
-                continue;
+                continueFlag = true;
             }
-			
+            
             //loop limit controls
             if((setting.Override_Loop_Limit__c && (loopLimit == 0 || getTriggerTrack(setting.DeveloperName) >= loopLimit) ) ||
                (setting.Override_Loop_Limit__c != true && (globalLoopLimit == 0 || getTriggerTrack(setting.DeveloperName) >= globalLoopLimit) ) ){
                    atarcDebug('LIMIT REACHED FOUND getInstances '+setting.DeveloperName);
-                   continue;
+                   continueFlag = true;
+            }
+            map<string,List<ATARC_Process_Availability_Rule__mdt>> aRules = settingRulesMap.containsKey(setting.id) ? settingRulesMap.get(setting.id) : null;
+            if(setting.General_Availability__c && aRules != null && aRules.containsKey('unavailable') && aRules.get('unavailable').size() > 0){
+                atarcDebug('Availability Rules FOUND unavailable');
+                continueFlag = true;
+            }
+            if(setting.General_Availability__c != true && (aRules == null || !aRules.containsKey('available') || aRules.get('available').size() <= 0) ){
+                atarcDebug('Atarc Process '+setting.DeveloperName+' not available to the public Availability Rules not FOUND available');
+                continueFlag = true;
+            }
+            if(continueFlag){
+                 continue;
             }
             /***********************************/
             
@@ -384,7 +505,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                 updateTriggerTrack(setting.DeveloperName, sObjectName, triggerEventTxt);
             }
         }
-        
         return instances;
     }
     
@@ -401,24 +521,37 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             //and invoke the filter method
             //
             integer loopLimit = setting.LoopLimit__c  == null ? 0 : integer.valueof(setting.LoopLimit__c);
+            boolean continueFlag = false;
             /**********************************/
             //simple skip functionality
             if (canSkip(config.skipEverything, setting) )
             {
                 atarcDebug('BYPASS FOUND getFEAInstances '+setting.DeveloperName);
-                continue;
+                continueFlag = true;
             }
-			            
+                        
             //loop limit controls
             if((setting.Override_Loop_Limit__c && (loopLimit == 0 || getTriggerTrack(setting.DeveloperName) >= loopLimit) ) ||
                (setting.Override_Loop_Limit__c != true && (globalLoopLimit == 0 || getTriggerTrack(setting.DeveloperName) >= globalLoopLimit) ) ){
                    atarcDebug('LIMIT REACHED FOUND getFEAInstances '+setting.DeveloperName);
-                   continue;
+                   continueFlag = true;
+            }
+            map<string,List<ATARC_Process_Availability_Rule__mdt>> aRules = settingRulesMap.containsKey(setting.id) ? settingRulesMap.get(setting.id) : null;
+            if(setting.General_Availability__c && aRules != null && aRules.containsKey('unavailable') && aRules.get('unavailable').size() > 0){
+                atarcDebug('Availability Rules FOUND unavailable');
+                continueFlag = true;
+            }
+            if(setting.General_Availability__c != true && (aRules == null || !aRules.containsKey('available') || aRules.get('available').size() <= 0) ){
+                atarcDebug('Atarc Process '+setting.DeveloperName+' not available to the public Availability Rules not FOUND available');
+                continueFlag = true;
             }
             /***********************************/
             
             //not sure if this could ever happen but in any case let's put this check here
             if(standardInterface.contains(setting.DeveloperName)){
+                continueFlag = true;
+            }
+            if(continueFlag) { 
                 continue;
             }
             object o = RequestInstance(setting.ApexHelperClassName__c, setting.BreakIfError__c);
@@ -429,7 +562,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                 updateTriggerTrack(setting.DeveloperName, sObjectName, triggerEventTxt);
             }
         }
-        
         return instances;
     }
     
@@ -646,6 +778,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                     continue;
                 }
                 /***********************************/
+                                    
                 
                 //configuring
                 config.triggerContext.debugMode = setting.debug__c;
@@ -670,6 +803,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                 }
                 
                 if (feainstances.containskey(setting.DeveloperName))  syncProcessesToRunActionPattern.add(setting);
+              
             }
         }
         atarcDebug('Running EXECUTE pattern COMPLETE');
@@ -705,7 +839,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         * SECOND LOOP TO DO ACTION PATTERN
         */
         runActionPattern(config, false, breakTransaction, deletionContext, feaInstances, syncProcessesToRunActionPattern);
-        
     }
     
     
@@ -724,10 +857,12 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         //so that only one active process thread is working            
         AsyncTriggerArcQueueable asyncWorker = RequestQueuable();
         
+        if(!(instances.containsKey(setting.developerName) || feaInstances.containsKey(setting.developerName))) return false;
+        
         if (setting.isAsync__c && asyncWorker != null &&
             //to fix specific problems when dml happens on a processes and the objects
             //affected by the dml has async process as well
-            !runningAsyncContext) {
+            !runningAsyncContext ) {
                 /**********************************/
                 //async feature
                 //
@@ -748,7 +883,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                 asyncWorker.pSkips = skips;
                 asyncWorker.instances = instances;  //(instances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcProcessBase > { setting.name => instances.get(setting.name)} : new Map<string,AsyncTriggerArcProcessBase>() );
                 asyncWorker.feaInstances = feaInstances; //(feaInstances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcFEAProcessBase > { setting.name => feaInstances.get(setting.name)} : new Map<string,AsyncTriggerArcFEAProcessBase>() );   
-                    
+                asyncWorker.settingRules = settingRulesMap;    
                 system.enqueueJob(asyncWorker);
                 atarcDebug('Processes executed async');
                 
@@ -903,6 +1038,63 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
         processesExecStatuses.get(processName).processTime = totalTime;
     }
     
+    static boolean isInt(object v) { return v instanceof integer;}
+    static boolean isDecimal(object v) { return v instanceof decimal;}
+    static boolean isString(object v) { return v instanceof string;}
+    static boolean isBoolean(object v) { return v instanceof boolean;}
+    static boolean isId(object v) { return v instanceof Id;}
+    static boolean boolVal(object v){ return boolean.valueof(v); }
+    static integer intVal(object v){ return integer.valueof(v); }
+    static decimal decimalVal(object v){ string strO = string.valueof(v); return decimal.valueof(strO); }
+    static id idVal(object v){ string strO = string.valueof(v); return Id.valueof(strO); }
+    static string stringVal(object v){ return string.valueof(v); }
+    static boolean greater(object inV, object fV){
+        return (isInt(inV) ? intVal(inV) > intVal(fV) :
+                           (isDecimal(inV) ? decimalVal(inV) > decimalVal(fV) :
+                           (isString(inV) ? stringVal(inV) > stringVal(fV)  :
+                           (isId(inV) ? idVal(inV) > idVal(fv): false))));
+    }
+    static boolean less(object inV, object fV){
+        return (isInt(inV) ? intVal(inV) < intVal(fV) :
+                           (isDecimal(inV) ? decimalVal(inV) < decimalVal(fV) :
+                           (isString(inV) ? stringVal(inV) < stringVal(fV)  : 
+                           (isId(inV) ? idVal(inV) < idVal(fv): false))));
+    }
+    static boolean equals(object inV, object fV){
+        return (isInt(inV) ? intVal(inV) == intVal(fV) :
+                           (isDecimal(inV) ? decimalVal(inV) == decimalVal(fV) :
+                           (isString(inV) ? stringVal(inV) == stringVal(fV)  : 
+                           (isBoolean(inV) ? boolVal(inV) == boolVal(fV)  : 
+                           (isId(inV) ? idVal(inV) == idVal(fv): false)))));
+    }
+    static boolean greaterEq(object inV, object fV){
+        return (isInt(inV) ? intVal(inV) >= intVal(fV) :
+                           (isDecimal(inV) ? decimalVal(inV) >= decimalVal(fV) :
+                           (isString(inV) ? stringVal(inV) >= stringVal(fV)  : 
+                           (isId(inV) ? idVal(inV) >= idVal(fv): false))));
+    }
+    static boolean lessEq(object inV, object fV){
+        return (isInt(inV) ? intVal(inV) <= intVal(fV) :
+                           (isDecimal(inV) ? decimalVal(inV) <= decimalVal(fV) :
+                           (isString(inV) ? stringVal(inV) <= stringVal(fV)  : 
+                           (isId(inV) ? idVal(inV) <= idVal(fv): false))));
+    }
+    static boolean notEq(object inV, object fV){
+        return (isInt(inV) ? intVal(inV) != intVal(fV) :
+                           (isDecimal(inV) ? decimalVal(inV) != decimalVal(fV) :
+                           (isString(inV) ? stringVal(inV) != stringVal(fV)  : 
+                           (isBoolean(inV) ? boolVal(inV) != boolVal(fV)  : 
+                           (isId(inV) ? idVal(inV) != idVal(fv): false)))));
+    }
+    static boolean EvaluateFieldValueWithOp(boolean initialCondition, object inV, object fV, string op){
+        if(op == '>'){ initialCondition = greater(inV, fV) && initialCondition;  }
+        if(op == '<'){ initialCondition = less(inV, fV) && initialCondition; }
+        if(op == '='){ initialCondition = equals(inV, fV) && initialCondition; }
+        if(op == '>='){ initialCondition = greaterEq(inV, fV) && initialCondition; }
+        if(op == '<='){ initialCondition = lessEq(inV, fV) && initialCondition; }
+        if(op == '!='){ initialCondition = notEq(inV,fV) && initialCondition; }
+        return initialCondition;
+    }
     /************************************************/
     //INNER CLASSES
     /***********************************************/
@@ -1144,6 +1336,10 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             get;
             set;
         }
+        public map<id, map<string, List<ATARC_Process_Availability_Rule__mdt>>> settingRules{
+            get;
+            set;
+        }
         
         public virtual void execute(QueueableContext context) {
             
@@ -1165,7 +1361,7 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             processesExecStatuses = pstatuses;
             updateTriggerTrack(currentSetting.DeveloperName, config.triggerContext.sobjectName, config.triggerContext.eventTxt );
             skips = pSkips;
-                       
+            settingRulesMap = settingRules;           
             boolean deletionContext = config.triggerContext.isdelete == true || config.triggerContext.isUndelete == true;
             
             if (feaInstances.containsKey(currentSetting.DeveloperName))
