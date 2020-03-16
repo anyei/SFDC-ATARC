@@ -33,11 +33,6 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
 */ 
     protected override void action(SObject oldRecord, sObject newRecord, AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
         
-        
-        triggerContext.debug('current processes ' + triggerContext.getCurrentProcessName());
-        
-        system.debug('algo from action '+ triggerContext.getCurrentProcessName());
-        
          if(triggerContext.getCurrentProcessName() == 'Filter Error 2')
             throw new AsyncTriggerArc.AsyncTriggerArcException('Filter Error 2');
         
@@ -52,6 +47,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
 */
     protected override object execute(AsyncTriggerArc.AsyncTriggerArcContext triggerContext){
         object result;
+        triggerContext.debug('current processes ' + triggerContext.getCurrentProcessName());
         
         if(triggerContext.getCurrentProcessName() == 'Test Process 1')
         {   result = 'something new'; AsyncTriggerArc.debug('this is for test'); }
@@ -138,6 +134,12 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         if(triggerContext.getCurrentProcessName() == 'Get Process Data')
             if( ((integer) triggerContext.getProcessData('Set Process Data')) != 10) throw new AsyncTriggerArc.AsyncTriggerArcException('Set and Get Process Data Failed');
         
+        if(triggerContext.getCurrentProcessName() == 'GeneralAvailabilityTrue')
+            result = 1010;
+        
+        if(triggerContext.getCurrentProcessName() == 'GeneralAvailabilityFalse')
+            result = 2020;
+        
         return result;
         
     }
@@ -150,16 +152,16 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     static List<ATARC_Process_Setting__mdt> setupData(){
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, BreakIfError__c=true),
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, BreakIfError__c=true, General_Availability__c=true),
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, General_Availability__c=true),
                     new ATARC_Process_Setting__mdt(DeveloperName='Test Process 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=3, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=3, isAsync__c=false, General_Availability__c=true),
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 4',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
                                                Event__c='BeforeInsert',IsActive__c=true,Order__c=4,
-                                               DependsOnSuccess__c = 'Test Process 2',isAsync__c=false),
+                                               DependsOnSuccess__c = 'Test Process 2',isAsync__c=false, General_Availability__c=true),
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=5,isAsync__c=false)
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=5,isAsync__c=false, General_Availability__c=true)
                 };
           return testSettings;
                    
@@ -391,7 +393,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
     @IsTest static void ApexClassInTheSettingsDoesNotExistsShouldThrowError(){
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
              new ATARC_Process_Setting__mdt(DeveloperName='Test Process fake class',SObject__c='Opportunity', ApexHelperClassName__c='FakeRandomClassWhoWIllNeverExistsEverAsyncTriggerWithALongLongLongLOngLOnglONgName',
-                                              Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,BreakIfError__c=true)
+                                              Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false,BreakIfError__c=true, General_Availability__c=true)
                  };
         AsyncTriggerArc atarc = new AsyncTriggerArc(
             true, //before
@@ -423,15 +425,15 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=6, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=6, isAsync__c=false, General_Availability__c=true),
                 
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process To Error',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               debug__c = true, debug_Level__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=7, isAsync__c=false),
+                                               debug__c = true, debug_Level__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=7, isAsync__c=false, General_Availability__c=true),
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 8',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnSuccess__c='Test Process To Error',
-                                               debug__c = true, debug_Level__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=8, isAsync__c=false),
+                                               debug__c = true, debug_Level__C='DEBUG',Event__c='BeforeInsert',IsActive__c=true,Order__c=8, isAsync__c=false, General_Availability__c=true),
                 
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 9',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=9,isAsync__c=false)
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=9,isAsync__c=false, General_Availability__c=true)
                 
                 };
         
@@ -481,7 +483,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process 10',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true)
                 
                 
                 };
@@ -530,7 +532,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process 11',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true)
                 
                 
                 };
@@ -575,7 +577,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process 12',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true)
                 
                 
                 };
@@ -624,9 +626,9 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true),
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnSuccess__c='Test Process 13',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, General_Availability__c=true)
                 
                 
                 };
@@ -677,9 +679,9 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true),
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnFailure__c='Test Process 13',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, General_Availability__c=true)
                 
                 
                 };
@@ -730,11 +732,11 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process 13',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true),
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 14',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',DependsOnSuccess__c='Test Process 13',
-                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false),
+                                               Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, General_Availability__c=true),
                 new ATARC_Process_Setting__mdt(DeveloperName='Test Process 15',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                               Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                               Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true)
                 
                 
                 };
@@ -782,7 +784,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process async 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=true)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=true, General_Availability__c=true)
                 };
                     
         
@@ -823,9 +825,9 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Skip 5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true),
             new ATARC_Process_Setting__mdt(DeveloperName='Skip 6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=2, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=2, isAsync__c=false, General_Availability__c=true)
                 };
                     
         
@@ -896,7 +898,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Filter Error 1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true)
                 };
         
         AsyncTriggerArc atarc = new AsyncTriggerArc(
@@ -936,7 +938,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Filter Error 2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true)
                 };
                     
         
@@ -978,7 +980,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Filter Error 3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true)
                 };
                     
                     
@@ -1020,7 +1022,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process Recursive',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, Override_Loop_Limit__c=true, LoopLimit__c=4)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=false, Override_Loop_Limit__c=true, LoopLimit__c=4, General_Availability__c=true)
                 
                 
                 };
@@ -1067,7 +1069,7 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Test Process Isolate',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=true,Isolate__c=true)
+                                           Event__c='AfterInsert',IsActive__c=true,Order__c=1, isAsync__c=true,Isolate__c=true, General_Availability__c=true)
                 
                 
                 };
@@ -1111,9 +1113,9 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         
         List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
             new ATARC_Process_Setting__mdt(DeveloperName='Set Process Data',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false),
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true),
             new ATARC_Process_Setting__mdt(DeveloperName='Get Process Data',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
-                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true)
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, General_Availability__c=true)
                 };
                     
                     
@@ -1183,5 +1185,871 @@ public class AsyncTriggerArcTest extends AsyncTriggerArc.AsyncTriggerArcFEAProce
         system.assert(totalProcesses == 0 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 0 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
         
     }
+    
+    @IsTest static void GeneralAvailabilityFullExecutesOneProcess(){
+        
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='GeneralAvailabilityFalse',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='GeneralAvailabilityTrue',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+                    
+                    
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('GeneralAvailabilityTrue').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for GeneralAvailabilityTrue');
+
+    }
+    
+     @IsTest static void OnlyAvailableForOneGroupShouldRunOneProcess(){
+        
+        Group grp = new Group(); 
+        grp.Name = 'ATARC_Group_Test1x'; 
+        grp.Type = 'Regular'; 
+        insert grp;
+        
+           GroupMember GrpMem = new GroupMember();
+           GrpMem.GroupId = grp.Id;
+           GrpMem.UserOrGroupId = UserInfo.getUserId();
+           insert grpMem;
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule1', Scope__c='Group', Scope_Id_Value__c=grp.Id, Availability__c='Available',isActive__c=true)
+                                                       //this doens't work ATARC_Process_Setting__r =  testSettings[1])
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule1'=>'ProcessWithoutGeneralAvail2'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('ProcessWithoutGeneralAvail2').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for ProcessWithoutGeneralAvail2');
+
+    }
+    
+    @IsTest static void OnlyAvailableForOnePermissionSetsShouldRunOneProcess(){
+        
+       PermissionSet ps = new PermissionSet(Name='ATARC_PS_Test_1xx', Label='ATARC_PS_Test_1xx');
+       insert ps;
+        
+       PermissionSetAssignment psa = new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId=ps.id);
+        insert psa;
+                
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail4',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule2', Scope__c='PermissionSet', Scope_Id_Value__c=ps.Id, Availability__c='Available',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule2'=>'ProcessWithoutGeneralAvail3'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('ProcessWithoutGeneralAvail3').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for ProcessWithoutGeneralAvail3');
+
+    }
+    
+    @IsTest static void OnlyAvailableForOneQueueShouldRunOneProcess(){
+        
+        Group grp = new Group(); 
+        grp.Name = 'ATARC_Group_Test1x'; 
+        grp.Type = 'Queue'; 
+        insert grp;
+        
+           GroupMember GrpMem = new GroupMember();
+           GrpMem.GroupId = grp.Id;
+           GrpMem.UserOrGroupId = UserInfo.getUserId();
+           insert grpMem;
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail5',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail6',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule3', Scope__c='Queue', Scope_Id_Value__c=grp.Id, Availability__c='Available',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule3'=>'ProcessWithoutGeneralAvail6'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('ProcessWithoutGeneralAvail6').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for ProcessWithoutGeneralAvail6');
+
+    }
+    
+    @IsTest static void OnlyAvailableForOneProfileShouldRunOneProcess(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail7x',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail8x',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule4x', Scope__c='Profile', Scope_Id_Value__c=UserInfo.getProfileId(), Availability__c='Available',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule4x'=>'ProcessWithoutGeneralAvail7x'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('ProcessWithoutGeneralAvail7x').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for ProcessWithoutGeneralAvail7x');
+
+    }
+    
+     @IsTest static void OnlyAvailableForOneRoleShouldRunOneProcess(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail7x1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail8x',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule4x1', Scope__c='Role', Scope_Id_Value__c=UserInfo.getUserRoleId(), Availability__c='Available',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule4x1'=>'ProcessWithoutGeneralAvail7x1'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('ProcessWithoutGeneralAvail7x1').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for ProcessWithoutGeneralAvail7x1');
+
+    }
+    
+    @IsTest static void OnlyAvailableForOneUserShouldRunOneProcess(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail7',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail8',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule4', Scope__c='User', Scope_Id_Value__c=UserInfo.getUserId(), Availability__c='Available',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule4'=>'ProcessWithoutGeneralAvail7'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('ProcessWithoutGeneralAvail7').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for ProcessWithoutGeneralAvail7');
+
+    }
+    
+    @IsTest static void OnlyAvailableForOneUserCustomFilterShouldRunOneProcess(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail9',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail10',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false),
+                new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail11',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false),
+                new ATARC_Process_Setting__mdt(DeveloperName='ProcessWithoutGeneralAvail12',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+             new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule5', Scope__c='User', Custom_Scope_Filter__c=true, Custom_Scope_Filter_Value__c='[{"field":"Name", "value":"'+userinfo.getName()+'","op":"="}]', Availability__c='Available',isActive__c=true),
+             new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule6', Scope__c='User', Custom_Scope_Filter__c=true, Custom_Scope_Filter_Value__c='[{"field":"Email", "value":"'+userinfo.getUserEmail()+'", "op":"="}]', Availability__c='Available',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule5'=>'ProcessWithoutGeneralAvail9','rule6'=>'ProcessWithoutGeneralAvail11' };                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 4 && totalExecutedProcesses ==2, 'Expected is (totalProcesses 4 totalExecutedProcesses 2) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('ProcessWithoutGeneralAvail11').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for ProcessWithoutGeneralAvail11');
+        system.assert(executionResult.get('ProcessWithoutGeneralAvail9').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for ProcessWithoutGeneralAvail9');
+
+    }
+    
+    @IsTest static void GeneralUnavailableFullExecutesNoProcess(){
+        
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='afalse1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=false, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='afalse2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=false)
+                };
+                    
+                    
+        
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==0, 'Expected is (totalProcesses 2 totalExecutedProcesses 0) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+    }
+    
+    @IsTest static void UnavailableForOneGroupShouldRunOneProcess(){
+        
+        Group grp = new Group(); 
+        grp.Name = 'ATARC_Group_Test1x'; 
+        grp.Type = 'Regular'; 
+        insert grp;
+        
+           GroupMember GrpMem = new GroupMember();
+           GrpMem.GroupId = grp.Id;
+           GrpMem.UserOrGroupId = UserInfo.getUserId();
+           insert grpMem;
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule1', Scope__c='Group', Scope_Id_Value__c=grp.Id, Availability__c='Unavailable',isActive__c=true)
+                                                       //this doens't work ATARC_Process_Setting__r =  testSettings[1])
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule1'=>'atrue1'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('atrue2').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue2');
+
+    }
+    
+    @IsTest static void UnavailableForOnePermissionSetsShouldRunOneProcess(){
+        
+       PermissionSet ps = new PermissionSet(Name='ATARC_PS_Test_1xx', Label='ATARC_PS_Test_1xx');
+       insert ps;
+        
+       PermissionSetAssignment psa = new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId=ps.id);
+        insert psa;
+                
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule2', Scope__c='PermissionSet', Scope_Id_Value__c=ps.Id, Availability__c='Unavailable',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule2'=>'atrue2'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('atrue1').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue1');
+
+    }
+    
+    @IsTest static void UnavailableForOneQueueShouldRunOneProcess(){
+        
+        Group grp = new Group(); 
+        grp.Name = 'ATARC_Group_Test1x'; 
+        grp.Type = 'Queue'; 
+        insert grp;
+        
+           GroupMember GrpMem = new GroupMember();
+           GrpMem.GroupId = grp.Id;
+           GrpMem.UserOrGroupId = UserInfo.getUserId();
+           insert grpMem;
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule3', Scope__c='Queue', Scope_Id_Value__c=grp.Id, Availability__c='Unavailable',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule3'=>'atrue1'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('atrue2').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue2');
+
+    }
+    
+    @IsTest static void UnavailableForOneProfileShouldRunOneProcess(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule4x', Scope__c='Profile', Scope_Id_Value__c=UserInfo.getProfileId(), Availability__c='Unavailable',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule4x'=>'atrue2'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('atrue1').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue1');
+
+    }
+    
+    @IsTest static void UnavailableForOneRoleShouldRunOneProcess(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule4x1', Scope__c='Role', Scope_Id_Value__c=UserInfo.getUserRoleId(), Availability__c='Unavailable',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule4x1'=>'atrue1'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('atrue2').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue2');
+
+    }
+    
+    @IsTest static void UnavailableForOneUserShouldRunOneProcess(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+              new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule4', Scope__c='User', Scope_Id_Value__c=UserInfo.getUserId(), Availability__c='Unavailable',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule4'=>'atrue2'};                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 2 && totalExecutedProcesses ==1, 'Expected is (totalProcesses 2 totalExecutedProcesses 1) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('atrue1').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue1');
+
+    }
+    
+    @IsTest static void UnavailableForTwoUsersCustomFilterShouldRunOneProcess(){
+        
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true),
+                new ATARC_Process_Setting__mdt(DeveloperName='atrue3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true),
+                new ATARC_Process_Setting__mdt(DeveloperName='atrue4',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+             new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule5', Scope__c='User', Custom_Scope_Filter__c=true, Custom_Scope_Filter_Value__c='[{"field":"Name", "value":"'+userinfo.getName()+'","op":"="}]', Availability__c='Unavailable',isActive__c=true),
+             new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule6', Scope__c='User', Custom_Scope_Filter__c=true, Custom_Scope_Filter_Value__c='[{"field":"Email", "value":"'+userinfo.getUserEmail()+'", "op":"="}]', Availability__c='Unavailable',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule5'=>'atrue2','rule6'=>'atrue3' };                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 4 && totalExecutedProcesses ==2, 'Expected is (totalProcesses 4 totalExecutedProcesses 2) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('atrue1').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue1');
+        system.assert(executionResult.get('atrue4').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue4');
+
+    }
+    
+    @IsTest static void UnavailableForMoreUsersCustomFilterShouldRunOneProcess(){
+        string zs = '';
+        for(integer i =0;i<255;i++) zs+='Z';
+        List<ATARC_Process_Setting__mdt> testSettings = new List<ATARC_Process_Setting__mdt>{
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue1',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=1, isAsync__c=false, General_Availability__c=true, debug__c=true),
+            new ATARC_Process_Setting__mdt(DeveloperName='atrue2',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true),
+                new ATARC_Process_Setting__mdt(DeveloperName='atrue3',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true),
+                new ATARC_Process_Setting__mdt(DeveloperName='atrue4',SObject__c='Opportunity', ApexHelperClassName__c='AsyncTriggerArcTest',
+                                           Event__c='BeforeInsert',IsActive__c=true,Order__c=2, isAsync__c=false, breakIfError__c=true, debug__c=true,General_Availability__c=true)
+                };
+         List<ATARC_Process_Availability_Rule__mdt> allrules = new List<ATARC_Process_Availability_Rule__mdt>{
+             new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule5', Scope__c='User', Custom_Scope_Filter__c=true, Custom_Scope_Filter_Value__c='[{"value":"a", "op":"<=", "field":"LastName"},{"value":true, "op":"=", "field":"IsActive" },{ "value":"a", "op":"<","field":"FirstName"}]', Availability__c='Unavailable',isActive__c=true),
+                 new ATARC_Process_Availability_Rule__mdt(DeveloperName = 'rule6', Scope__c='User', Custom_Scope_Filter__c=true, Custom_Scope_Filter_Value__c='[{"value":false,"op":"!=","field":"IsActive"}, {"value":"'+zs+'","op":">=","field":"LastName"}, {"value":"'+zs+'","op":">","field":"FirstName"}]', Availability__c='Unavailable',isActive__c=true)
+                  };
+                    
+        Map<string, string> ruleSettingsMapping =new Map<string, string> {'rule5'=>'atrue2','rule6'=>'atrue3' };                    
+        AsyncTriggerArc atarc = new AsyncTriggerArc(
+            true, //before
+            false, //after 
+            true, //insert
+            false, 
+            false,
+            false,
+            new List<Opportunity>{new opportunity()},
+            new List<Opportunity>{new Opportunity()},
+            null, 
+            null);
+        
+        AsyncTriggerArc.settings= testSettings;
+        AsyncTriggerArc.allrules = allrules;
+        AsyncTriggerArc.rulesSettingsMapping = ruleSettingsMapping;
+        
+        test.startTest();
+        atarc.Start();//first run
+        test.stoptest();
+        
+        Map<string,AsyncTriggerArc.AsyncTriggerArcProcessInfo> executionResult= atarc.getProcessesExecutionInformation();
+        integer totalProcesses = executionResult.size();
+        integer totalExecutedProcesses = 0;
+        
+        for(AsyncTriggerArc.AsyncTriggerArcProcessInfo p : executionResult.values()){
+            totalExecutedProcesses += ( p.status == AsyncTriggerArc.PROCESS_EXECUTED ||  p.status == AsyncTriggerArc.PROCESS_FAILED ? 1 : 0);
+        }
+        
+        
+        system.assert(totalProcesses == 4 && totalExecutedProcesses ==2, 'Expected is (totalProcesses 4 totalExecutedProcesses 2) Current is (totalProcesses '+totalProcesses+' totalExecutedProcesses '+totalExecutedProcesses+')');
+        system.assert(executionResult.get('atrue1').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue1');
+        system.assert(executionResult.get('atrue4').status==AsyncTriggerArc.PROCESS_EXECUTED, 'Expected is Process Executed for atrue4');
+
+    }
+    
+    
     
 }

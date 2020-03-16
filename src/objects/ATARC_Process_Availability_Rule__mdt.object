@@ -55,7 +55,7 @@
     </fields>
     <fields>
         <fullName>IsActive__c</fullName>
-        <defaultValue>false</defaultValue>
+        <defaultValue>true</defaultValue>
         <externalId>false</externalId>
         <fieldManageability>DeveloperControlled</fieldManageability>
         <label>IsActive</label>
@@ -127,11 +127,11 @@
         <errorMessage>Scope Id Value must not be empty if Custom Scope Filter is not selected.</errorMessage>
     </validationRules>
     <validationRules>
-        <fullName>UserAndProfileOnlySupportedCustomFilter</fullName>
+        <fullName>UserOnlySupportedCustomFilter</fullName>
         <active>true</active>
-        <errorConditionFormula>not(TEXT(Scope__c) == &apos;User&apos; ||   TEXT(Scope__c) == &apos;Profile&apos;) &amp;&amp; Custom_Scope_Filter__c == true</errorConditionFormula>
+        <errorConditionFormula>TEXT(Scope__c) != &apos;User&apos; &amp;&amp; Custom_Scope_Filter__c == true</errorConditionFormula>
         <errorDisplayField>Custom_Scope_Filter__c</errorDisplayField>
-        <errorMessage>Only Scope of User and Profile supports Custom Scope Filters.</errorMessage>
+        <errorMessage>Only Scope of User supports Custom Scope Filters.</errorMessage>
     </validationRules>
     <visibility>Public</visibility>
 </CustomObject>
