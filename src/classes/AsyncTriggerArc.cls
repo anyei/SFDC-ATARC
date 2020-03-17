@@ -61,6 +61,7 @@ public class AsyncTriggerArc {
     public static boolean globalSkip;
     public static integer globalTransactionLoop;
     public static boolean globalDebugMode = true;
+    static boolean alwaysAvailable;
     
     
     /****************/
@@ -103,11 +104,13 @@ public class AsyncTriggerArc {
                     orderProcessed = false;
         
         globalSkip = false;
+        alwaysAvailable = false;
         ATARC_Global_Setting__c globalConfigSetting = ATARC_Global_Setting__c.getInstance();
         if(globalConfigSetting != null)  {
             globalSkip = globalConfigSetting.SkipAll__c;
             globalDebugMode = globalConfigSetting.Debug__c;
             globalTransactionLoop = Integer.valueof(globalConfigSetting.LoopLimit__c);
+            alwaysAvailable = globalConfigSetting.General_Availability__c;
         }
                 
         runningAsyncContext = false;
@@ -489,11 +492,11 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                    continueFlag = true;
             }
             map<string,List<ATARC_Process_Availability_Rule__mdt>> aRules = settingRulesMap.containsKey(setting.developerName) ? settingRulesMap.get(setting.developerName) : null;
-            if(setting.General_Availability__c && aRules != null && aRules.containsKey('Unavailable') && aRules.get('Unavailable').size() > 0){
+            if(!alwaysAvailable && setting.General_Availability__c && aRules != null && aRules.containsKey('Unavailable') && aRules.get('Unavailable').size() > 0){
                 atarcDebug('Availability Rules FOUND unavailable');
                 continueFlag = true;
             }
-            if(setting.General_Availability__c != true && (aRules == null || !aRules.containsKey('Available') || aRules.get('Available').size() <= 0) ){
+            if(!alwaysAvailable && setting.General_Availability__c != true && (aRules == null || !aRules.containsKey('Available') || aRules.get('Available').size() <= 0) ){
                 atarcDebug('Atarc Process '+setting.DeveloperName+' not available to the public Availability Rules not FOUND available');
                 continueFlag = true;
             }
@@ -541,11 +544,11 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                    continueFlag = true;
             }
             map<string,List<ATARC_Process_Availability_Rule__mdt>> aRules = settingRulesMap.containsKey(setting.developerName) ? settingRulesMap.get(setting.developerName) : null;
-            if(setting.General_Availability__c && aRules != null && aRules.containsKey('Unavailable') && aRules.get('Unavailable').size() > 0){
+            if(!alwaysAvailable && setting.General_Availability__c && aRules != null && aRules.containsKey('Unavailable') && aRules.get('Unavailable').size() > 0){
                 atarcDebug('Availability Rules FOUND unavailable');
                 continueFlag = true;
             }
-            if(setting.General_Availability__c != true && (aRules == null || !aRules.containsKey('Available') || aRules.get('Available').size() <= 0) ){
+            if(!alwaysAvailable && setting.General_Availability__c != true && (aRules == null || !aRules.containsKey('Available') || aRules.get('Available').size() <= 0) ){
                 atarcDebug('Atarc Process '+setting.DeveloperName+' not available to the public Availability Rules not FOUND available');
                 continueFlag = true;
             }
@@ -885,9 +888,10 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
                 asyncWorker.fromAsync = true;
                 asyncWorker.pCustomData =  customData;
                 asyncWorker.pSkips = skips;
-                asyncWorker.instances = instances;  //(instances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcProcessBase > { setting.name => instances.get(setting.name)} : new Map<string,AsyncTriggerArcProcessBase>() );
-                asyncWorker.feaInstances = feaInstances; //(feaInstances.containsKey(setting.name) ? new Map<string, AsyncTriggerArcFEAProcessBase > { setting.name => feaInstances.get(setting.name)} : new Map<string,AsyncTriggerArcFEAProcessBase>() );   
-                asyncWorker.settingRules = settingRulesMap;    
+                asyncWorker.instances = instances;  
+                asyncWorker.feaInstances = feaInstances;    
+                asyncWorker.settingRules = settingRulesMap; 
+                asyncWorker.pAlwaysAvailable = alwaysAvailable;
                 system.enqueueJob(asyncWorker);
                 atarcDebug('Processes executed async');
                 
@@ -1342,12 +1346,13 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             get;
             set;
         }
+        public boolean palwaysAvailable {get;set;}
         
         public virtual void execute(QueueableContext context) {
             
             atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg + '\n'+currentSetting.DeveloperName );
             processOrder(true);
-            
+            alwaysAvailable = palwaysAvailable;
             customData = pCustomData;
             
             //TODO: TEST THIS SCENARIO FOR runningAsyncContext = true
