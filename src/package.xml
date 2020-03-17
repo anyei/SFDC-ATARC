@@ -11,5 +11,10 @@
         <members>ATARC_Process_Setting__mdt</members>
         <name>CustomObject</name>
     </types>
+    <types>
+        <members>ATARC_Process_Availability_Rule__mdt-ATARC Process Availability Rule Layout</members>
+        <members>ATARC_Process_Setting__mdt-ATARC Process Setting Layout</members>
+        <name>Layout</name>
+    </types>
     <version>47.0</version>
 </Package>
