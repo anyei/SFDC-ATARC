@@ -11,6 +11,14 @@
         <type>Checkbox</type>
     </fields>
     <fields>
+        <fullName>General_Availability__c</fullName>
+        <defaultValue>false</defaultValue>
+        <externalId>false</externalId>
+        <label>General Availability</label>
+        <trackTrending>false</trackTrending>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
         <fullName>LoopLimit__c</fullName>
         <externalId>false</externalId>
         <label>LoopLimit</label>
