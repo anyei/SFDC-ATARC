@@ -1217,8 +1217,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             
         }
         
-        
-        
         public object getProcessData(string processName) {
             return (customData.containsKey(processName) ? customData.get(processName) : null);
         }
@@ -1349,8 +1347,6 @@ order by SObject__c, Event__c,Order__c,isAsync__c asc] : settings;//AsyncTrigger
             
             atarcDebug('EXECUTING ASYNC ' + currentSetting.ApexHelperClassName__c + '\n' + additionalMsg + '\n'+currentSetting.DeveloperName );
             processOrder(true);
-            //instances = instances.containsKey(currentSetting.DeveloperName) ? instances : new Map<string,AsyncTriggerArcProcessBase>() ; 
-            //feaInstances = feaInstances.containsKey(currentSetting.DeveloperName) ? feaInstances : new Map<string, AsyncTriggerArcFEAProcessBase>() ;
             
             customData = pCustomData;
             

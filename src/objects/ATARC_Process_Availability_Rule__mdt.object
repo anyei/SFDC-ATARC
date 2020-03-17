@@ -83,14 +83,19 @@
             <valueSetDefinition>
                 <sorted>false</sorted>
                 <value>
-                    <fullName>Profile</fullName>
-                    <default>true</default>
-                    <label>Profile</label>
-                </value>
-                <value>
                     <fullName>Group</fullName>
                     <default>false</default>
                     <label>Group</label>
+                </value>
+                <value>
+                    <fullName>Permission Set</fullName>
+                    <default>false</default>
+                    <label>Permission Set</label>
+                </value>
+                <value>
+                    <fullName>Profile</fullName>
+                    <default>true</default>
+                    <label>Profile</label>
                 </value>
                 <value>
                     <fullName>Queue</fullName>
@@ -98,9 +103,9 @@
                     <label>Queue</label>
                 </value>
                 <value>
-                    <fullName>Permission Set</fullName>
+                    <fullName>Role</fullName>
                     <default>false</default>
-                    <label>Permission Set</label>
+                    <label>Role</label>
                 </value>
                 <value>
                     <fullName>User</fullName>
