@@ -88,7 +88,7 @@
                     <label>Group</label>
                 </value>
                 <value>
-                    <fullName>Permission Set</fullName>
+                    <fullName>PermissionSet</fullName>
                     <default>false</default>
                     <label>Permission Set</label>
                 </value>
